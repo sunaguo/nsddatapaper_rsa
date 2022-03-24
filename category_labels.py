@@ -4,18 +4,18 @@ from nsd_access import NSDAccess
 from utils.nsd_get_data import get_conditions
 
 # number of sessions
-n_sessions = 40
+n_sessions = 5
 
 # number of subjects
-n_subjects = 8
+n_subjects = 3
 
 # subjects
 subs = ['subj0{}'.format(x+1) for x in range(n_subjects)]
 
 # setup some directories
-base_dir = op.join('/rds', 'projects', 'c')
-nsd_dir = op.join(base_dir, 'charesti-start', 'data', 'NSD')
-proj_dir = op.join(base_dir, 'charesti-start', 'projects', 'NSD')
+base_dir = "/work2/07365/sguo19/stampede2/"
+nsd_dir = op.join(base_dir, 'NSD')
+proj_dir = op.join(base_dir, 'nsddatapaper_rsa')
 betas_dir = op.join(proj_dir, 'rsa')
 
 # prepare outputs
@@ -59,7 +59,7 @@ nsda = NSDAccess(nsd_dir)
 # in nsda we have a module that extracts the categories
 # from the annotation files provided with MS coco.
 categories = nsda.read_image_coco_category(
-        conditions-1, njobs=2
+        conditions-1, n_jobs=6
     )
 
 # and save them

@@ -11,19 +11,42 @@ from utils.utils import average_over_conditions
 """
     module to gather the region of interest rdms
 """
+
+# vars
 sub = int(sys.argv[1])
-n_jobs = 38
-n_sessions = 40
-n_subjects = 8
+sub = f"subj0{sub}"
+n_jobs = 1
+n_sessions = 5
+n_subjects = 3
+
+targetspace = 'fsaverage'
+
+ROIS = {
+        1007: "ctx-lh-fusiform", 
+        1008: "ctx-lh-inferiorparietal", 
+        1009: "ctx-lh-inferiortemporal", 
+        1016: "ctx-lh-parahippocampal",
+        1025: "ctx-lh-precuneus", 
+        1029: "ctx-lh-superiorparietal",
+        
+        2007: "ctx-rh-fusiform", 
+        2008: "ctx-rh-inferiorparietal", 
+        2009: "ctx-rh-inferiortemporal", 
+        2016: "ctx-rh-parahippocampal",
+        2025: "ctx-rh-precuneus", 
+        2029: "ctx-rh-superiorparietal",
+        }
 
 # set up directories
-base_dir = os.path.join('/rds', 'projects', 'c')
-nsd_dir = os.path.join(base_dir, 'charesti-start', 'data', 'NSD')
-proj_dir = os.path.join(base_dir, 'charesti-start', 'projects', 'NSD')
-nsd_dir = os.path.join(base_dir, 'charesti-start', 'data', 'NSD')
-sem_dir = os.path.join(proj_dir, 'derivatives', 'ecoset')
+base_dir = "/work2/07365/sguo19/stampede2/"
+nsd_dir = os.path.join(base_dir, 'NSD')
+proj_dir = os.path.join(base_dir, 'nsddatapaper_rsa')
 betas_dir = os.path.join(proj_dir, 'rsa')
-models_dir = os.path.join(proj_dir, 'rsa', 'serialised_models')
+
+parc_path = os.path.join(nsd_dir, "nsddata", "freesurfer", sub, "mri", "aparc.DKTatlas+aseg.mgz")
+
+# sem_dir = os.path.join(proj_dir, 'derivatives', 'ecoset')
+# models_dir = os.path.join(proj_dir, 'rsa', 'serialised_models')
 
 # initiate nsd access
 nsda = NSDAccess(nsd_dir)
@@ -33,27 +56,8 @@ outpath = os.path.join(betas_dir, 'roi_analyses')
 if not os.path.exists(outpath):
     os.makedirs(outpath)
 
-# we use the fsaverage space.
-targetspace = 'fsaverage'
-
-lh_file = os.path.join(proj_dir, 'lh.highlevelvisual.mgz')
-rh_file = os.path.join(proj_dir, 'rh.highlevelvisual.mgz')
-
-# load the lh mask
-maskdata_lh = nib.load(lh_file).get_fdata().squeeze()
-maskdata_rh = nib.load(rh_file).get_fdata().squeeze()
-
-maskdata = np.hstack((maskdata_lh, maskdata_rh))
-
-ROIS = {1: 'pVTC', 2: 'aVTC', 3: 'v1', 4: 'v2', 5: 'v3'}
-
-roi_names = ['pVTC', 'aVTC', 'v1', 'v2', 'v3']
-
-# sessions
-n_sessions = 40
-
-# subjects
-subs = ['subj0{}'.format(x+1) for x in range(n_subjects)]
+# load parcellation
+maskdata = nib.load(parc_path).get_fdata()
 
 # extract conditions
 conditions = get_conditions(nsd_dir, sub, n_sessions)

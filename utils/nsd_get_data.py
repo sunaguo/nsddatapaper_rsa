@@ -110,21 +110,38 @@ def get_betas(nsd_dir, sub, n_sessions, mask=None, targetspace='func1pt8mm'):
             if targetspace == 'fsaverage':
                 conaxis = 1
 
-                # load lh
-                img_lh = nb.load(
-                        os.path.join(
-                            data_folder,
-                            f'lh.betas_session{si_str}.mgz'
-                            )
-                        ).get_data().squeeze()
+                try: 
+                    # load lh
+                    img_lh = nb.load(
+                            os.path.join(
+                                data_folder,
+                                f'lh.betas_session{si_str}.mgz'
+                                )
+                            ).get_data().squeeze()
 
-                # load rh
-                img_rh = nb.load(
-                        os.path.join(
-                            data_folder,
-                            f'rh.betas_session{si_str}.mgz'
-                            )
-                        ).get_data().squeeze()
+                    # load rh
+                    img_rh = nb.load(
+                            os.path.join(
+                                data_folder,
+                                f'rh.betas_session{si_str}.mgz'
+                                )
+                            ).get_data().squeeze()
+                except FileNotFoundError:
+                    # load lh
+                    img_lh = nb.load(
+                            os.path.join(
+                                data_folder,
+                                f'lh.betas_session{si_str}.mgh'
+                                )
+                            ).get_data().squeeze()
+
+                    # load rh
+                    img_rh = nb.load(
+                            os.path.join(
+                                data_folder,
+                                f'rh.betas_session{si_str}.mgh'
+                                )
+                            ).get_data().squeeze()
 
                 # concatenate
                 all_verts = np.vstack((img_lh, img_rh))
