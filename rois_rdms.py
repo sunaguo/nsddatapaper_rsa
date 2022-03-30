@@ -2,6 +2,7 @@ import sys
 import os
 import time
 import numpy as np
+import pandas as pd
 import nibabel as nib
 from scipy.spatial.distance import pdist
 from nsd_access import NSDAccess
@@ -12,38 +13,38 @@ from utils.utils import average_over_conditions
     module to gather the region of interest rdms
 """
 
-# vars
+# ===== vars & paths
 sub = int(sys.argv[1])
 sub = f"subj0{sub}"
 n_jobs = 1
 n_sessions = 5
-n_subjects = 3
 
 targetspace = 'fsaverage'
 
-ROIS = {
-        1007: "ctx-lh-fusiform", 
-        1008: "ctx-lh-inferiorparietal", 
-        1009: "ctx-lh-inferiortemporal", 
-        1016: "ctx-lh-parahippocampal",
-        1025: "ctx-lh-precuneus", 
-        1029: "ctx-lh-superiorparietal",
+# # DKT atlas ROIS
+# ROIS = {
+#         1007: "ctx-lh-fusiform", 
+#         1008: "ctx-lh-inferiorparietal", 
+#         1009: "ctx-lh-inferiortemporal", 
+#         1016: "ctx-lh-parahippocampal",
+#         1025: "ctx-lh-precuneus", 
+#         1029: "ctx-lh-superiorparietal",
         
-        2007: "ctx-rh-fusiform", 
-        2008: "ctx-rh-inferiorparietal", 
-        2009: "ctx-rh-inferiortemporal", 
-        2016: "ctx-rh-parahippocampal",
-        2025: "ctx-rh-precuneus", 
-        2029: "ctx-rh-superiorparietal",
-        }
+#         2007: "ctx-rh-fusiform", 
+#         2008: "ctx-rh-inferiorparietal", 
+#         2009: "ctx-rh-inferiortemporal", 
+#         2016: "ctx-rh-parahippocampal",
+#         2025: "ctx-rh-precuneus", 
+#         2029: "ctx-rh-superiorparietal",
+#         }
+
+ROIS = ["SPL", "IPL",] # "PCV"]
 
 # set up directories
 base_dir = "/work2/07365/sguo19/stampede2/"
 nsd_dir = os.path.join(base_dir, 'NSD')
 proj_dir = os.path.join(base_dir, 'nsddatapaper_rsa')
 betas_dir = os.path.join(proj_dir, 'rsa')
-
-parc_path = os.path.join(nsd_dir, "nsddata", "freesurfer", sub, "mri", "aparc.DKTatlas+aseg.mgz")
 
 # sem_dir = os.path.join(proj_dir, 'derivatives', 'ecoset')
 # models_dir = os.path.join(proj_dir, 'rsa', 'serialised_models')
@@ -56,29 +57,40 @@ outpath = os.path.join(betas_dir, 'roi_analyses')
 if not os.path.exists(outpath):
     os.makedirs(outpath)
 
-# load parcellation
-maskdata = nib.load(parc_path).get_fdata()
+# ===== loading
+# === load parcellation
+# parc_path = os.path.join(nsd_dir, "nsddata", "freesurfer", sub, "mri", "aparc.DKTatlas+aseg.mgz")
+lh_file = os.path.join(nsd_dir, "nsddata", "freesurfer", "fsaverage", "label", 'lh.HCP_MMP1.mgz')
+rh_file = os.path.join(nsd_dir, "nsddata", "freesurfer", "fsaverage", "label", 'rh.HCP_MMP1.mgz')
 
-# extract conditions
+# maskdata = nib.load(parc_path).get_fdata().flatten()
+maskdata_lh = nib.load(lh_file).get_fdata().squeeze()
+maskdata_rh = nib.load(rh_file).get_fdata().squeeze()
+maskdata = np.hstack((maskdata_lh, maskdata_rh))
+print("loaded maskdata: ", maskdata.shape)
+
+# === load ROIs
+ROI_path = os.path.join(proj_dir, "utils", "HCP_MMP1_parietal_labels.csv")
+ROI_df = pd.read_csv(ROI_path, sep='\t')
+
+# === load conditions
 conditions = get_conditions(nsd_dir, sub, n_sessions)
-
-# we also need to reshape conditions to be ntrials x 1
-conditions = np.asarray(conditions).ravel()
+conditions = np.asarray(conditions).ravel()  # ntrials x 1
 
 # then we find the valid trials for which we do have 3 repetitions.
-conditions_bool = [
-    True if np.sum(conditions == x) == 3 else False for x in conditions]
-
+conditions_bool = [True if np.sum(conditions == x) == 3 else False for x in conditions]
 conditions_sampled = conditions[conditions_bool]
-
 # find the subject's unique condition list (sample pool)
 sample = np.unique(conditions[conditions_bool])
 
-betas_file = os.path.join(
-    outpath, f'{sub}_betas_list_{targetspace}.npy'
-)
+# # save conditions
+# cond_out_path = os.path.join(outpath, f'{sub}_condition-list_session-{n_sessions}.npy')
+# print(f'saving condition list for {sub}')
+# np.save(cond_out_path, conditions_sampled)
+
+# === load mean betas / calculate from full betas
 betas_mean_file = os.path.join(
-        outpath, f'{sub}_betas_list_{targetspace}_averaged.npy'
+        outpath, f'{sub}_betas-list_{targetspace}_session-{n_sessions}_averaged.npy'
 )
 
 if not os.path.exists(betas_mean_file):
@@ -106,32 +118,29 @@ if not os.path.exists(betas_mean_file):
 else:
     print(f'loading betas for {sub}')
     betas_mean = np.load(betas_mean_file, allow_pickle=True)
+print("betas_mean: ", betas_mean.shape)
 
-
-# print
-print(f'saving condition list for {sub}')
-np.save(
-        os.path.join(
-            outpath, f'{sub}_condition_list.npy'
-        ),
-        conditions_sampled
-    )
-
-# save the subject's full ROI RDMs
-for roi in range(1, 6):
-    mask_name = ROIS[roi]
+# ===== make ROI RDMs & save
+for mask_name in ROIS:
 
     rdm_file = os.path.join(
         outpath, f'{sub}_{mask_name}_fullrdm_correlation.npy'
     )
 
     if not os.path.exists(rdm_file):
-
-        # logical array of mask vertices
-        vs_mask = maskdata == roi
         print(f'working on ROI: {mask_name}')
 
-        masked_betas = betas_mean[vs_mask, :]
+        # large ROIs
+        if mask_name in ["SPL", "IPL", "PCV"]:
+            mask_df = ROI_df[ROI_df["region"]==mask_name]
+            mask = np.array([False for _ in range(len(maskdata))])
+            for roi, roi_name in zip(mask_df["ROI_id"], mask_df["ROI_name"]):
+                mask = mask | (maskdata == roi)
+        else:  # single small ROI
+            mask_df = ROI_df[ROI_df["ROI_name"]==mask_name]
+            mask = maskdata == mask_df["ROI_id"]
+
+        masked_betas = betas_mean[mask, :]
 
         good_vox = [
             True if np.sum(
