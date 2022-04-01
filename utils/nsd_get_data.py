@@ -193,7 +193,7 @@ def get_betas(nsd_dir, sub, n_sessions, mask=None, targetspace='func1pt8mm'):
     return betas
 
 
-def get_labels(sub, betas_dir, nsd_dir, condition_list):
+def get_labels(sub, betas_dir, nsd_dir, condition_list, n_sessions=10, n_jobs=1):
     """labels = get_labels(sub, betas_dir, nsd_dir, condition_list)
 
     Arguments:
@@ -217,10 +217,10 @@ def get_labels(sub, betas_dir, nsd_dir, condition_list):
 
     # get the categories
     labels = np.load(os.path.join(
-        betas_dir, 'all_stims_category_labels.npy'
+        betas_dir, f'all_stims_category_labels_session-{n_sessions}.npy'
     ), allow_pickle=True)
 
-    label_file = os.path.join(betas_dir, f'{sub}_sample_labels.npy')
+    label_file = os.path.join(betas_dir, f'{sub}_sample_labels_session-{n_sessions}.npy')
 
     if not os.path.exists(label_file):
         print('computing category labels')
@@ -236,7 +236,7 @@ def get_labels(sub, betas_dir, nsd_dir, condition_list):
 
         # get the specific labels for the condition list and binarise
         categories = nsda.read_image_coco_category(
-            condition_list
+            condition_list, n_jobs=n_jobs
         )
 
         bin_vectors = []

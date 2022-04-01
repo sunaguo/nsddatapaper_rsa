@@ -1,14 +1,15 @@
+import argparse
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 import scprep
-import sys
+# import sys
 import time
-import tkinter # noqa
+# import tkinter # noqa
 from matplotlib import cm
 from nsd_access import NSDAccess
-from nsd_get_data import get_conditions, get_labels
+from utils.nsd_get_data import get_conditions, get_labels
 from scipy.spatial.distance import squareform
 from sklearn import manifold
 from utils.utils import category_dict, mds
@@ -24,94 +25,105 @@ matplotlib.use('TkAgg')
     python nsd_plot_tsne.py 0 1
 """
 
+parser = argparse.ArgumentParser()
+parser.add_argument("sub", help="subject id in integer. e.g., '1' for subj01", type=int, default=1)
+parser.add_argument("n_sessions", help="n_sessions to load", type=int, default=10)
+parser.add_argument("n_jobs", help="n_jobs to run", type=int, default=1)
+args = parser.parse_args()
 
-subject = int(sys.argv[1])
-n_jobs = int(sys.argv[2])
+sub = f"subj0{args.sub}"
+n_sessions = args.n_sessions
+n_jobs = args.n_jobs
 
-n_sessions = 40
-n_subjects = 8
+# subject = int(sys.argv[1])
+# sub = f"subj0{subject}"
+# # n_jobs = int(sys.argv[2])
+# n_jobs = 8
 
-# set up directories
-base_dir = os.path.join('/rds', 'projects', 'c')
-nsd_dir = os.path.join(base_dir, 'charesti-start', 'data', 'NSD')
-proj_dir = os.path.join(base_dir, 'charesti-start', 'projects', 'NSD')
-nsd_dir = os.path.join(base_dir, 'charesti-start', 'data', 'NSD')
-sem_dir = os.path.join(proj_dir, 'derivatives', 'ecoset')
+# n_sessions = 10
+# n_subjects = 1
+
+# here are the Regions of interest and their indices
+# ROIS = {
+#     1: 'pVTC',
+#     2: 'aVTC',
+#     3: 'v1',
+#     4: 'v2',
+#     5: 'v3'
+# }
+# roi_names = ['pVTC', 'aVTC', 'v1', 'v2', 'v3']
+ROIS = ['SPL', "IPL"]
+
+# ===== set up directories
+base_dir = "/work2/07365/sguo19/stampede2/"
+nsd_dir = os.path.join(base_dir, 'NSD')
+proj_dir = os.path.join(base_dir, 'nsddatapaper_rsa')
 betas_dir = os.path.join(proj_dir, 'rsa')
-models_dir = os.path.join(proj_dir, 'rsa', 'serialised_models')
-
-nsda = NSDAccess(nsd_dir)
+# sem_dir = os.path.join(proj_dir, 'derivatives', 'ecoset')
+# models_dir = os.path.join(proj_dir, 'rsa', 'serialised_models')
 
 outpath = os.path.join(betas_dir, 'roi_analyses')
 if not os.path.exists(outpath):
     os.makedirs(outpath)
 
-# here are the Regions of interest and their indices
-ROIS = {
-    1: 'pVTC',
-    2: 'aVTC',
-    3: 'v1',
-    4: 'v2',
-    5: 'v3'
-}
-
-roi_names = ['pVTC', 'aVTC', 'v1', 'v2', 'v3']
-
-# sessions
-n_sessions = 40
-
-# subjects
-subs = ['subj0{}'.format(x+1) for x in range(n_subjects)]
-
-# load labels
-labels = np.load(
-    os.path.join(
-        betas_dir,
-        'all_stims_category_labels.npy'
-    ),
-    allow_pickle=True
+tsne_figures = os.path.join(
+        outpath, 'tsne_figures'
 )
 
-# restrain to NSD images
-flat_labels = [item for sublist in labels for item in sublist]
-all_labels = sorted(list(set(flat_labels)))
+if not os.path.exists(tsne_figures):
+    os.makedirs(tsne_figures)
 
-# get unique colour per category
-category_colors = cm.RdYlBu(range(80))
+for mask_name in ROIS:
+    category_figures = os.path.join(
+            outpath, 'category_figures', sub, mask_name
+    )
 
-# which subjects are we dealing with?
-sub = subs[subject]
+    if not os.path.exists(category_figures):
+        os.makedirs(category_figures)
 
-# extract conditions data
+nsda = NSDAccess(nsd_dir)
+
+# load conditions data
 conditions = get_conditions(nsd_dir, sub, n_sessions)
-
-# we also need to reshape conditions to be ntrials x 1
-conditions = np.asarray(conditions).ravel()
-
+conditions = np.asarray(conditions).ravel()  # ntrials x 1
 # then we find the valid trials for which we do have 3 repetitions.
 conditions_bool = [
     True if np.sum(conditions == x) == 3 else False for x in conditions]
-
-conditions_sampled = conditions[conditions_bool]
-
 # find the subject's condition list (sample pool)
 sample = np.unique(conditions[conditions_bool])
 
 # retrieve the category matrix for the sample
-category_matrix = get_labels(sub, betas_dir, nsd_dir, sample-1)
+category_matrix = get_labels(sub, betas_dir, nsd_dir, sample-1, n_sessions=n_sessions, n_jobs=n_jobs)
 
-# also prepare the category binary maps
-category_classes = []
-for cat_i in range(80):
-    flat = np.full(len(sample), '0_unknown')
-    flat[category_matrix[:, cat_i] == 1] = all_labels[cat_i]
-    category_classes.append(flat)
+# # ===== labels for binary maps
+# # TODO: order categories by word embedding rather than alphabetical
+# # load labels
+# labels = np.load(
+#     os.path.join(
+#         betas_dir,
+#         f'all_stims_category_labels_session-{n_sessions}.npy'
+#     ),
+#     allow_pickle=True
+# )
+
+# # restrain to NSD images 
+# all_labels = sorted(list(set(np.concatenate(labels))))
+
+# # also prepare the category binary maps
+# category_classes = []
+# for cat_i in range(80):
+#     flat = np.full(len(sample), '0_unknown')
+#     flat[category_matrix[:, cat_i] == 1] = all_labels[cat_i]
+#     category_classes.append(flat)
+
+# # get unique colour per category
+# category_colors = cm.RdYlBu(range(80))  # there are only 80 categories in COCO in general??
 
 # prepare the class labels
 class_labels = []
 for categ_v in category_matrix:
 
-    # 1 is animate, 0 inanimate
+    # category_dict: 1 is animate, 0 inanimate
     cat_is = np.where(categ_v)[0]
     anim_class = [category_dict[str(x)] for x in cat_is]
 
@@ -146,57 +158,36 @@ for categ_v in category_matrix:
 
     class_labels.append(class_label)
 
-n_images = len(sample)
-all_conditions = range(n_images)
+# n_images = len(sample)
+# all_conditions = range(n_images)
 
 # load RDMs
 rdms = []
-for roi in range(1, 6):
-
-    mask_name = ROIS[roi]
-
+for mask_name in ROIS:
     rdm_file = os.path.join(
-        outpath, f'{sub}_{mask_name}_fullrdm_correlation.npy'
+        outpath, f'{sub}_{mask_name}_fullrdm_correlation_session-{n_sessions}.npy'
     )
     print(f'loading full rdm for {mask_name} : {sub}')
     rdm = np.load(rdm_file, allow_pickle=True)
     rdms.append(rdm.astype(np.float32))
 
-# make some t-SNE figures
-tsne_figures = os.path.join(
-        outpath, 'tsne_figures'
-)
-
-if not os.path.exists(tsne_figures):
-    os.makedirs(tsne_figures)
-
-for roi in range(1, 6):
-
-    mask_name = ROIS[roi]
-    # make some t-SNE figures
-    category_figures = os.path.join(
-            outpath, 'category_figures', sub, mask_name
-    )
-
-    if not os.path.exists(category_figures):
-        os.makedirs(category_figures)
-
 # get the sample images
 sample_im = nsda.read_images(list(sample-1))
 
 # loop over rois
-for roi_i, roi in enumerate(ROIS.values()):
+for roi_i, roi in enumerate(ROIS):
 
     tsne_fig_file = os.path.join(
-        tsne_figures, f'{sub}_{roi}_tsne.png'
+        tsne_figures, f'{sub}_{roi}_tsne_session-{n_sessions}.png'
     )
     tsne_fig_file_dots = os.path.join(
-        tsne_figures, f'{sub}_{roi}_tsne_dots.svg'
+        tsne_figures, f'{sub}_{roi}_tsne_dots_session-{n_sessions}.svg'
     )
     mds_fig_file_dots = os.path.join(
-        tsne_figures, f'{sub}_{roi}_mds_dots.svg'
+        tsne_figures, f'{sub}_{roi}_mds_dots_session-{n_sessions}.svg'
     )
 
+    # === MDS 
     print(f"Computing MDS embedding for {sub}\n\t {roi}")
     start_time = time.time()
     Y_mds = mds(rdms[roi_i])
@@ -220,6 +211,7 @@ for roi_i, roi in enumerate(ROIS.values()):
     plt.savefig(mds_fig_file_dots)
     plt.close('all')
 
+    # === tSNE
     print(f"Computing t-SNE embedding for {sub}\n\t {roi}")
     start_time = time.time()
     tsne_operator = manifold.TSNE(
@@ -246,6 +238,9 @@ for roi_i, roi in enumerate(ROIS.values()):
         legend_loc='lower left',
         legend_ncol=2,
         label_prefix="t-SNE")
+
+    plt.savefig(tsne_fig_file_dots)
+    plt.close('all')
 
     # also plot the figure with all pictures
     fig = plt.figure(figsize=(20, 20))
@@ -277,24 +272,24 @@ for roi_i, roi in enumerate(ROIS.values()):
     plt.savefig(tsne_fig_file, dpi=400, quality=95)
     plt.close('all')
 
-    # now cycle through the categories
+    # # now cycle through the categories
 
-    category_figures = os.path.join(
-            outpath, 'category_figures', sub, roi
-    )
+    # category_figures = os.path.join(
+    #         outpath, 'category_figures', sub, roi
+    # )
 
-    # cycle through categories
-    for cat_i, category in enumerate(category_classes):
-        category_fig_file_dots = os.path.join(
-            category_figures, f'{sub}_{cat_i:03d}_{all_labels[cat_i]}_dots.png'
-        )
-        scprep.plot.scatter2d(
-            Y_tsne,
-            c=category,
-            figsize=(8, 8),
-            cmap=[[.85, .85, .85], list(category_colors[cat_i][:3])],
-            ticks=False,
-            label_prefix="t-SNE")
+    # # cycle through categories
+    # for cat_i, category in enumerate(category_classes):
+    #     category_fig_file_dots = os.path.join(
+    #         category_figures, f'{sub}_{cat_i:03d}_{all_labels[cat_i]}_dots.png'
+    #     )
+    #     scprep.plot.scatter2d(
+    #         Y_tsne,
+    #         c=category,
+    #         figsize=(8, 8),
+    #         cmap=[[.85, .85, .85], list(category_colors[cat_i][:3])],
+    #         ticks=False,
+    #         label_prefix="t-SNE")
 
-        plt.savefig(category_fig_file_dots, dpi=400, quality=95)
-        plt.close('all')
+    #     plt.savefig(category_fig_file_dots, dpi=400, quality=95)
+    #     plt.close('all')

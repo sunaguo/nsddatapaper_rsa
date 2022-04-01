@@ -1,3 +1,4 @@
+import argparse
 import sys
 import os
 import time
@@ -13,11 +14,21 @@ from utils.utils import average_over_conditions
     module to gather the region of interest rdms
 """
 
+parser = argparse.ArgumentParser()
+parser.add_argument("sub", help="subject id in integer. e.g., '1' for subj01", type=int, default=1)
+parser.add_argument("n_sessions", help="n_sessions to load", type=int, default=10)
+parser.add_argument("n_jobs", help="n_jobs to run", type=int, default=1)
+args = parser.parse_args()
+
+sub = f"subj0{args.sub}"
+n_sessions = args.n_sessions
+n_jobs = args.n_jobs
+
 # ===== vars & paths
-sub = int(sys.argv[1])
-sub = f"subj0{sub}"
-n_jobs = 1
-n_sessions = 5
+# sub = int(sys.argv[1])
+# sub = f"subj0{sub}"
+# n_jobs = 1
+# n_sessions = 10
 
 targetspace = 'fsaverage'
 
@@ -38,7 +49,7 @@ targetspace = 'fsaverage'
 #         2029: "ctx-rh-superiorparietal",
 #         }
 
-ROIS = ["SPL", "IPL",] # "PCV"]
+ROIS = ["parietal"]#"SPL", "IPL",] # "PCV"]
 
 # set up directories
 base_dir = "/work2/07365/sguo19/stampede2/"
@@ -124,21 +135,24 @@ print("betas_mean: ", betas_mean.shape)
 for mask_name in ROIS:
 
     rdm_file = os.path.join(
-        outpath, f'{sub}_{mask_name}_fullrdm_correlation.npy'
+        outpath, f'{sub}_{mask_name}_fullrdm_correlation_session-{n_sessions}.npy'
     )
 
     if not os.path.exists(rdm_file):
         print(f'working on ROI: {mask_name}')
 
-        # large ROIs
-        if mask_name in ["SPL", "IPL", "PCV"]:
+        # depending on ROI, limit mask_df to corresponding small regions
+        if mask_name == "parietal":
+            mask_df = ROI_df[ROI_df["region"]!="PCV"]
+        elif mask_name in ["SPL", "IPL", "PCV"]:
             mask_df = ROI_df[ROI_df["region"]==mask_name]
-            mask = np.array([False for _ in range(len(maskdata))])
-            for roi, roi_name in zip(mask_df["ROI_id"], mask_df["ROI_name"]):
-                mask = mask | (maskdata == roi)
         else:  # single small ROI
             mask_df = ROI_df[ROI_df["ROI_name"]==mask_name]
-            mask = maskdata == mask_df["ROI_id"]
+
+        # make mask
+        mask = np.array([False for _ in range(len(maskdata))])
+        for roi, roi_name in zip(mask_df["ROI_id"], mask_df["ROI_name"]):
+            mask = mask | (maskdata == roi)
 
         masked_betas = betas_mean[mask, :]
 
