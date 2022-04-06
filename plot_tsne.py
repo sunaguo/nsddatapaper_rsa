@@ -52,7 +52,7 @@ n_jobs = args.n_jobs
 #     5: 'v3'
 # }
 # roi_names = ['pVTC', 'aVTC', 'v1', 'v2', 'v3']
-ROIS = ['SPL', "IPL"]
+ROIS = ["SPL", "IPL",] # "PCV"]  "parietal"]
 
 # ===== set up directories
 base_dir = "/work2/07365/sguo19/stampede2/"
@@ -73,13 +73,13 @@ tsne_figures = os.path.join(
 if not os.path.exists(tsne_figures):
     os.makedirs(tsne_figures)
 
-for mask_name in ROIS:
-    category_figures = os.path.join(
-            outpath, 'category_figures', sub, mask_name
-    )
+# for mask_name in ROIS:
+#     category_figures = os.path.join(
+#             outpath, 'category_figures', sub, mask_name
+#     )
 
-    if not os.path.exists(category_figures):
-        os.makedirs(category_figures)
+#     if not os.path.exists(category_figures):
+#         os.makedirs(category_figures)
 
 nsda = NSDAccess(nsd_dir)
 
@@ -118,6 +118,9 @@ category_matrix = get_labels(sub, betas_dir, nsd_dir, sample-1, n_sessions=n_ses
 
 # # get unique colour per category
 # category_colors = cm.RdYlBu(range(80))  # there are only 80 categories in COCO in general??
+
+# colormap
+cate_colors = ["red", "gold", "grey", "mediumorchid", "limegreen", "cyan", "blue", ]
 
 # prepare the class labels
 class_labels = []
@@ -201,7 +204,7 @@ for roi_i, roi in enumerate(ROIS):
         Y_mds,
         c=class_labels,
         figsize=(8, 8),
-        cmap="RdYlBu",
+        cmap=cate_colors,
         ticks=False,
         legend_loc='lower left',
         legend_ncol=2,
@@ -233,7 +236,7 @@ for roi_i, roi in enumerate(ROIS):
         Y_tsne,
         c=class_labels,
         figsize=(8, 8),
-        cmap="RdYlBu",
+        cmap=cate_colors,
         ticks=False,
         legend_loc='lower left',
         legend_ncol=2,

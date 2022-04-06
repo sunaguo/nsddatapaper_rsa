@@ -1,9 +1,8 @@
 import numpy as np
-from sklearn.manifold import MDS
 from scipy.spatial.distance import squareform
 
 
-def mds(utv, pos=None, n_jobs=1):
+def mds(utv, pos=None, n_components=2, n_jobs=1):
     """ pos = mds(utv)
 
     mds computes the multi-dimensional scaling solution on a 
@@ -25,10 +24,11 @@ def mds(utv, pos=None, n_jobs=1):
 
     """
 
+    from sklearn.manifold import MDS
     rdm = squareform(utv)
     seed = np.random.RandomState(seed=3)
     mds = MDS(
-        n_components=2,
+        n_components=n_components,
         max_iter=100,
         random_state=seed,
         dissimilarity="precomputed",
