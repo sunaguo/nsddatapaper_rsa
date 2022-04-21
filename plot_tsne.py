@@ -1,5 +1,6 @@
 import argparse
 import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import os
@@ -13,7 +14,8 @@ from utils.nsd_get_data import get_conditions, get_labels
 from scipy.spatial.distance import squareform
 from sklearn import manifold
 from utils.utils import category_dict, mds
-matplotlib.use('TkAgg')
+
+from config import *
 
 """[nsd_plot_tsne]
 
@@ -25,15 +27,15 @@ matplotlib.use('TkAgg')
     python nsd_plot_tsne.py 0 1
 """
 
-parser = argparse.ArgumentParser()
-parser.add_argument("sub", help="subject id in integer. e.g., '1' for subj01", type=int, default=1)
-parser.add_argument("n_sessions", help="n_sessions to load", type=int, default=10)
-parser.add_argument("n_jobs", help="n_jobs to run", type=int, default=1)
-args = parser.parse_args()
+# parser = argparse.ArgumentParser()
+# parser.add_argument("sub", help="subject id in integer. e.g., '1' for subj01", type=int, default=1)
+# parser.add_argument("n_sessions", help="n_sessions to load", type=int, default=10)
+# parser.add_argument("n_jobs", help="n_jobs to run", type=int, default=1)
+# args = parser.parse_args()
 
-sub = f"subj0{args.sub}"
-n_sessions = args.n_sessions
-n_jobs = args.n_jobs
+# sub = f"subj0{args.sub}"
+# n_sessions = args.n_sessions
+# n_jobs = args.n_jobs
 
 # subject = int(sys.argv[1])
 # sub = f"subj0{subject}"
@@ -51,8 +53,10 @@ n_jobs = args.n_jobs
 #     4: 'v2',
 #     5: 'v3'
 # }
-# roi_names = ['pVTC', 'aVTC', 'v1', 'v2', 'v3']
-ROIS = ["SPL", "IPL",] # "PCV"]  "parietal"]
+# ROIS = ['pVTC', 'aVTC', 'v1', 'v2', 'v3']
+# ROIS = ["SPL", "IPL",] # "PCV"]  "parietal"]
+# group_level = "pathway"
+# ROIS = ["dorsal"]
 
 # ===== set up directories
 base_dir = "/work2/07365/sguo19/stampede2/"
@@ -67,7 +71,7 @@ if not os.path.exists(outpath):
     os.makedirs(outpath)
 
 tsne_figures = os.path.join(
-        outpath, 'tsne_figures'
+        outpath, "self_tsne_figures"  #'tsne_figures'
 )
 
 if not os.path.exists(tsne_figures):
@@ -184,10 +188,10 @@ for roi_i, roi in enumerate(ROIS):
         tsne_figures, f'{sub}_{roi}_tsne_session-{n_sessions}.png'
     )
     tsne_fig_file_dots = os.path.join(
-        tsne_figures, f'{sub}_{roi}_tsne_dots_session-{n_sessions}.svg'
+        tsne_figures, f'{sub}_{roi}_tsne_dots_session-{n_sessions}.png'
     )
     mds_fig_file_dots = os.path.join(
-        tsne_figures, f'{sub}_{roi}_mds_dots_session-{n_sessions}.svg'
+        tsne_figures, f'{sub}_{roi}_mds_dots_session-{n_sessions}.png'
     )
 
     # === MDS 
@@ -211,7 +215,7 @@ for roi_i, roi in enumerate(ROIS):
         label_prefix="MDS"
     )
 
-    plt.savefig(mds_fig_file_dots)
+    plt.savefig(mds_fig_file_dots, dpi=400)
     plt.close('all')
 
     # === tSNE
@@ -242,14 +246,14 @@ for roi_i, roi in enumerate(ROIS):
         legend_ncol=2,
         label_prefix="t-SNE")
 
-    plt.savefig(tsne_fig_file_dots)
+    plt.savefig(tsne_fig_file_dots, dpi=400)
     plt.close('all')
 
     # also plot the figure with all pictures
     fig = plt.figure(figsize=(20, 20))
     ax = plt.gca()
     # extent : scalars (left, right, bottom, top)
-    scaler = 0.0075
+    scaler = 0.27
     # lets say you have 40 images, first 20 are animate
     for i, pat in enumerate(Y_tsne):
         x, y = pat
@@ -268,11 +272,11 @@ for roi_i, roi in enumerate(ROIS):
             zorder=1
         )
 
-    ax.set_xlim([-0.1, 1.1])
-    ax.set_ylim([-0.1, 1.1])
+    ax.set_xlim([Y_tsne[:,0].min()-0.5, Y_tsne[:,0].max()+0.5])
+    ax.set_ylim([Y_tsne[:,1].min()-0.5, Y_tsne[:,1].max()+0.5])
     ax.set_axis_off()
 
-    plt.savefig(tsne_fig_file, dpi=400, quality=95)
+    plt.savefig(tsne_fig_file, dpi=400)
     plt.close('all')
 
     # # now cycle through the categories

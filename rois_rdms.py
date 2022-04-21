@@ -1,28 +1,30 @@
 import argparse
-import sys
+# import sys
 import os
 import time
 import numpy as np
 import pandas as pd
 import nibabel as nib
+import scipy.io
 from scipy.spatial.distance import pdist
 from nsd_access import NSDAccess
 from utils.nsd_get_data import get_conditions, get_betas
 from utils.utils import average_over_conditions
+from config import *
 
 """
     module to gather the region of interest rdms
 """
 
-parser = argparse.ArgumentParser()
-parser.add_argument("sub", help="subject id in integer. e.g., '1' for subj01", type=int, default=1)
-parser.add_argument("n_sessions", help="n_sessions to load", type=int, default=10)
-parser.add_argument("n_jobs", help="n_jobs to run", type=int, default=1)
-args = parser.parse_args()
+# parser = argparse.ArgumentParser()
+# parser.add_argument("sub", help="subject id in integer. e.g., '1' for subj01", type=int, default=1)
+# parser.add_argument("n_sessions", help="n_sessions to load", type=int, default=10)
+# # parser.add_argument("n_jobs", help="n_jobs to run", type=int, default=1)
+# args = parser.parse_args()
 
-sub = f"subj0{args.sub}"
-n_sessions = args.n_sessions
-n_jobs = args.n_jobs
+# sub = f"subj0{args.sub}"
+# n_sessions = args.n_sessions
+# # n_jobs = args.n_jobs
 
 # ===== vars & paths
 # sub = int(sys.argv[1])
@@ -49,7 +51,11 @@ targetspace = 'fsaverage'
 #         2029: "ctx-rh-superiorparietal",
 #         }
 
-ROIS = ["parietal"]#"SPL", "IPL",] # "PCV"]
+# # glasser atlas
+# ROIS = ["parietal"]  #"ventral"]    #"SPL", "IPL",] # "PCV"]
+# ROIS = ['pVTC', 'aVTC', 'v1', 'v2', 'v3']
+# group_level = "pathway"
+# ROIS = ["dorsal"]
 
 # set up directories
 base_dir = "/work2/07365/sguo19/stampede2/"
@@ -71,17 +77,27 @@ if not os.path.exists(outpath):
 # ===== loading
 # === load parcellation
 # parc_path = os.path.join(nsd_dir, "nsddata", "freesurfer", sub, "mri", "aparc.DKTatlas+aseg.mgz")
-lh_file = os.path.join(nsd_dir, "nsddata", "freesurfer", "fsaverage", "label", 'lh.HCP_MMP1.mgz')
-rh_file = os.path.join(nsd_dir, "nsddata", "freesurfer", "fsaverage", "label", 'rh.HCP_MMP1.mgz')
+if "pVTC" in ROIS:
+    lh_file = os.path.join('./lh.highlevelvisual.mat')
+    rh_file = os.path.join('./rh.highlevelvisual.mat')
+    maskdata_lh = scipy.io.loadmat(lh_file)["lh"].squeeze()
+    maskdata_rh = scipy.io.loadmat(rh_file)["rh"].squeeze()
+else:
+    lh_file = os.path.join(nsd_dir, "nsddata", "freesurfer", "fsaverage", "label", 'lh.HCP_MMP1.mgz')
+    rh_file = os.path.join(nsd_dir, "nsddata", "freesurfer", "fsaverage", "label", 'rh.HCP_MMP1.mgz')
+    # maskdata = nib.load(parc_path).get_fdata().flatten()
+    maskdata_lh = nib.load(lh_file).get_fdata().squeeze()
+    maskdata_rh = nib.load(rh_file).get_fdata().squeeze()
 
-# maskdata = nib.load(parc_path).get_fdata().flatten()
-maskdata_lh = nib.load(lh_file).get_fdata().squeeze()
-maskdata_rh = nib.load(rh_file).get_fdata().squeeze()
 maskdata = np.hstack((maskdata_lh, maskdata_rh))
 print("loaded maskdata: ", maskdata.shape)
 
 # === load ROIs
-ROI_path = os.path.join(proj_dir, "utils", "HCP_MMP1_parietal_labels.csv")
+# if "pVTC" in ROIS:
+#     ROI_path = os.path.join(proj_dir, "utils", "NSD_ventral_ROI_labels.csv")
+# else:
+#     ROI_path = os.path.join(proj_dir, "utils", "HCP_MMP1_parietal_labels.csv")
+ROI_path = os.path.join(proj_dir, "utils", "ROI_labels.tsv")
 ROI_df = pd.read_csv(ROI_path, sep='\t')
 
 # === load conditions
@@ -93,11 +109,13 @@ conditions_bool = [True if np.sum(conditions == x) == 3 else False for x in cond
 conditions_sampled = conditions[conditions_bool]
 # find the subject's unique condition list (sample pool)
 sample = np.unique(conditions[conditions_bool])
+print("sample pool size:", len(sample))
 
-# # save conditions
-# cond_out_path = os.path.join(outpath, f'{sub}_condition-list_session-{n_sessions}.npy')
-# print(f'saving condition list for {sub}')
-# np.save(cond_out_path, conditions_sampled)
+# save conditions
+cond_out_path = os.path.join(outpath, f'{sub}_condition-list_session-{n_sessions}.npy')
+print(f'saving condition list for {sub}')
+np.save(cond_out_path, conditions_sampled)
+print("condition shape:", conditions_sampled.shape)
 
 # === load mean betas / calculate from full betas
 betas_mean_file = os.path.join(
@@ -141,20 +159,17 @@ for mask_name in ROIS:
     if not os.path.exists(rdm_file):
         print(f'working on ROI: {mask_name}')
 
-        # depending on ROI, limit mask_df to corresponding small regions
-        if mask_name == "parietal":
-            mask_df = ROI_df[ROI_df["region"]!="PCV"]
-        elif mask_name in ["SPL", "IPL", "PCV"]:
-            mask_df = ROI_df[ROI_df["region"]==mask_name]
-        else:  # single small ROI
-            mask_df = ROI_df[ROI_df["ROI_name"]==mask_name]
+        # depending on grouping level, limit mask_df to corresponding small regions
+        mask_df = ROI_df[ ROI_df[group_level] == mask_name ]
 
         # make mask
         mask = np.array([False for _ in range(len(maskdata))])
         for roi, roi_name in zip(mask_df["ROI_id"], mask_df["ROI_name"]):
             mask = mask | (maskdata == roi)
+        print("mask shape:", mask.shape)
 
         masked_betas = betas_mean[mask, :]
+        print("masked_betas shape:", masked_betas.shape)
 
         good_vox = [
             True if np.sum(
@@ -165,16 +180,19 @@ for mask_name in ROIS:
             print(f'found some NaN for ROI: {mask_name} - {sub}')
 
         masked_betas = masked_betas[good_vox, :]
+        print("masked_betas shape after filtering with good_vox", masked_betas.shape)
 
         # prepare for correlation distance
         X = masked_betas.T
+        print("X shape:", X.shape)
 
         print(f'computing RDM for roi: {mask_name}')
         start_time = time.time()
         rdm = pdist(X, metric='correlation')
+        print("rdm shape", rdm.shape)
 
         if np.any(np.isnan(rdm)):
-            raise ValueError
+            raise ValueError("found nan in rdm")
 
         elapsed_time = time.time() - start_time
         print(

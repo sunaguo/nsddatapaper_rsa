@@ -217,7 +217,7 @@ def get_labels(sub, betas_dir, nsd_dir, condition_list, n_sessions=10, n_jobs=1)
 
     # get the categories
     labels = np.load(os.path.join(
-        betas_dir, f'all_stims_category_labels_session-{n_sessions}.npy'
+        betas_dir, f'all_stims_category_labels_session-10.npy'
     ), allow_pickle=True)
 
     label_file = os.path.join(betas_dir, f'{sub}_sample_labels_session-{n_sessions}.npy')
