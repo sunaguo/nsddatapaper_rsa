@@ -217,6 +217,7 @@ for roi_i, roi in enumerate(ROIS):
 
     plt.savefig(mds_fig_file_dots, dpi=400)
     plt.close('all')
+    print("saved MDS image!")
 
     # === tSNE
     print(f"Computing t-SNE embedding for {sub}\n\t {roi}")
@@ -236,6 +237,7 @@ for roi_i, roi in enumerate(ROIS):
         f'{time.strftime("%H:%M:%S", time.gmtime(elapsed_time))}'
     )
 
+    print("plotting tSNE with dots...")
     scprep.plot.scatter2d(
         Y_tsne,
         c=class_labels,
@@ -248,8 +250,10 @@ for roi_i, roi in enumerate(ROIS):
 
     plt.savefig(tsne_fig_file_dots, dpi=400)
     plt.close('all')
+    print("saved tSNE image with dots!")
 
     # also plot the figure with all pictures
+    print("plotting tSNE with images...")
     fig = plt.figure(figsize=(20, 20))
     ax = plt.gca()
     # extent : scalars (left, right, bottom, top)
@@ -278,6 +282,7 @@ for roi_i, roi in enumerate(ROIS):
 
     plt.savefig(tsne_fig_file, dpi=400)
     plt.close('all')
+    print("saved tSNE image with images!")
 
     # # now cycle through the categories
 
