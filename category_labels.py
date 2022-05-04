@@ -3,24 +3,25 @@ import os.path as op
 import numpy as np
 from nsd_access import NSDAccess
 from utils.nsd_get_data import get_conditions, get_labels
+from config import *
 
-parser = argparse.ArgumentParser()
-# parser.add_argument("n_subs", help="number of subjects to compute", type=int, default=1)
-parser.add_argument("n_sessions", help="n_sessions to load", type=int, default=10)
-parser.add_argument("n_jobs", help="n_jobs to run", type=int, default=1)
-args = parser.parse_args()
+# parser = argparse.ArgumentParser()
+# # parser.add_argument("n_subs", help="number of subjects to compute", type=int, default=1)
+# parser.add_argument("n_sessions", help="n_sessions to load", type=int, default=10)
+# parser.add_argument("n_jobs", help="n_jobs to run", type=int, default=1)
+# args = parser.parse_args()
 
-# n_subjects = args.n_subs
-n_sessions = args.n_sessions
-n_jobs = args.n_jobs
+# # n_subjects = args.n_subs
+# n_sessions = args.n_sessions
+# n_jobs = args.n_jobs
 
 # n_sessions = 10
-# n_subjects = 1
+n_subjects = 8
 # n_jobs = 8
 
 # subjects
-# subs = ['subj0{}'.format(x+1) for x in range(n_subjects)]
-subs = ['subj01',]  # 'subj05', 'subj04']
+subs = ['subj0{}'.format(x+1) for x in range(n_subjects)]
+# subs = ['subj01',]  # 'subj05', 'subj04']
 
 # setup some directories
 base_dir = "/work2/07365/sguo19/stampede2/"
@@ -51,7 +52,7 @@ if not op.exists(save_stim):
             True if np.sum(conditions == x) == 3 else False for x in conditions]
         # find the subject's condition list (sample pool)
         sample = np.unique(conditions[conditions_bool])
-        # retrieve the category matrix for the sample
+        # retrieve the category matrix for the sample & save with funct internal structure
         _ = get_labels(sub, betas_dir, nsd_dir, sample-1, n_sessions=n_sessions, n_jobs=n_jobs)
 
     # this is the 73K format condition name for all 213 000 trials

@@ -93,10 +93,6 @@ maskdata = np.hstack((maskdata_lh, maskdata_rh))
 print("loaded maskdata: ", maskdata.shape)
 
 # === load ROIs
-# if "pVTC" in ROIS:
-#     ROI_path = os.path.join(proj_dir, "utils", "NSD_ventral_ROI_labels.csv")
-# else:
-#     ROI_path = os.path.join(proj_dir, "utils", "HCP_MMP1_parietal_labels.csv")
 ROI_path = os.path.join(proj_dir, "utils", "ROI_labels.tsv")
 ROI_df = pd.read_csv(ROI_path, sep='\t')
 

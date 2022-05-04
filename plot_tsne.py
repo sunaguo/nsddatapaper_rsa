@@ -123,8 +123,12 @@ category_matrix = get_labels(sub, betas_dir, nsd_dir, sample-1, n_sessions=n_ses
 # # get unique colour per category
 # category_colors = cm.RdYlBu(range(80))  # there are only 80 categories in COCO in general??
 
-# colormap
-cate_colors = ["red", "gold", "grey", "mediumorchid", "limegreen", "cyan", "blue", ]
+# ===== colormap
+# # three axis
+# cate_colors = ["red", "gold", "grey", "mediumorchid", "limegreen", "cyan", "blue", ]
+# NSD colors
+cate_colors = ["black", "dimgray", "lightgray", "darkgray", "red", "purple", "blue", ]
+
 
 # prepare the class labels
 class_labels = []
@@ -168,24 +172,17 @@ for categ_v in category_matrix:
 # n_images = len(sample)
 # all_conditions = range(n_images)
 
-# load RDMs
-rdms = []
-for mask_name in ROIS:
-    rdm_file = os.path.join(
-        outpath, f'{sub}_{mask_name}_fullrdm_correlation_session-{n_sessions}.npy'
-    )
-    print(f'loading full rdm for {mask_name} : {sub}')
-    rdm = np.load(rdm_file, allow_pickle=True)
-    rdms.append(rdm.astype(np.float32))
-
 # get the sample images
 sample_im = nsda.read_images(list(sample-1))
 
 # loop over rois
 for roi_i, roi in enumerate(ROIS):
+    tsne_file = os.path.join(
+        outpath, f'{sub}_{roi}_tsne_session-{n_sessions}.npy'
+    )
 
     tsne_fig_file = os.path.join(
-        tsne_figures, f'{sub}_{roi}_tsne_session-{n_sessions}.png'
+        tsne_figures, f'{sub}_{roi}_tsne_session-{n_sessions}.svg'
     )
     tsne_fig_file_dots = os.path.join(
         tsne_figures, f'{sub}_{roi}_tsne_dots_session-{n_sessions}.png'
@@ -194,59 +191,79 @@ for roi_i, roi in enumerate(ROIS):
         tsne_figures, f'{sub}_{roi}_mds_dots_session-{n_sessions}.png'
     )
 
-    # === MDS 
-    print(f"Computing MDS embedding for {sub}\n\t {roi}")
-    start_time = time.time()
-    Y_mds = mds(rdms[roi_i])
-    elapsed_time = time.time() - start_time
-    print(
-        'elapsedtime: ',
-        f'{time.strftime("%H:%M:%S", time.gmtime(elapsed_time))}'
-    )
+    if not os.path.exists(tsne_file):
+        # load RDM
+        rdm_file = os.path.join(
+            outpath, f'{sub}_{mask_name}_fullrdm_correlation_session-{n_sessions}.npy'
+        )
+        print(f'loading full rdm for {mask_name} : {sub}')
+        rdm = np.load(rdm_file, allow_pickle=True)
 
-    scprep.plot.scatter2d(
-        Y_mds,
-        c=class_labels,
-        figsize=(8, 8),
-        cmap=cate_colors,
-        ticks=False,
-        legend_loc='lower left',
-        legend_ncol=2,
-        label_prefix="MDS"
-    )
+        # === MDS 
+        print(f"Computing MDS embedding for {sub}\n\t {roi}")
+        start_time = time.time()
+        Y_mds = mds(rdm)
+        elapsed_time = time.time() - start_time
+        print(
+            'elapsedtime: ',
+            f'{time.strftime("%H:%M:%S", time.gmtime(elapsed_time))}'
+        )
 
-    plt.savefig(mds_fig_file_dots, dpi=400)
-    plt.close('all')
-    print("saved MDS image!")
+        # === tSNE
+        print(f"Computing t-SNE embedding for {sub}\n\t {roi}")
+        start_time = time.time()
+        tsne_operator = manifold.TSNE(
+            metric='precomputed',
+            perplexity=100,
+            n_components=2,
+            init=Y_mds,
+            n_jobs=n_jobs
+        )
 
-    # === tSNE
-    print(f"Computing t-SNE embedding for {sub}\n\t {roi}")
-    start_time = time.time()
-    tsne_operator = manifold.TSNE(
-        metric='precomputed',
-        perplexity=100,
-        n_components=2,
-        init=Y_mds,
-        n_jobs=n_jobs
-    )
+        Y_tsne = tsne_operator.fit_trancorrelationsform(squareform(rdm))
+        elapsed_time = time.time() - start_time
+        print(
+            'elapsedtime: ',
+            f'{time.strftime("%H:%M:%S", time.gmtime(elapsed_time))}'
+        )
 
-    Y_tsne = tsne_operator.fit_transform(squareform(rdms[roi_i]))
-    elapsed_time = time.time() - start_time
-    print(
-        'elapsedtime: ',
-        f'{time.strftime("%H:%M:%S", time.gmtime(elapsed_time))}'
-    )
+        print(f"saving tsne obj...")
+        np.save(tsne_file, Y_tsne)
+    else: 
+        print("loading from saved tsne file...")
+        Y_tsne = np.load(tsne_file)
 
+    # # === plot mds
+    # scprep.plot.scatter2d(
+    #     Y_mds,
+    #     c=class_labels,
+    #     figsize=(8, 8),
+    #     cmap=cate_colors,
+    #     ticks=False,
+    #     legend_loc='lower left',
+    #     legend_ncol=2,
+    #     label_prefix="MDS"
+    # )
+
+    # plt.savefig(mds_fig_file_dots, dpi=400)
+    # plt.close('all')
+    # print("saved MDS image!")
+
+    # === plot tSNE
     print("plotting tSNE with dots...")
     scprep.plot.scatter2d(
         Y_tsne,
         c=class_labels,
-        figsize=(8, 8),
+        figsize=(5, 5),
         cmap=cate_colors,
         ticks=False,
-        legend_loc='lower left',
-        legend_ncol=2,
-        label_prefix="t-SNE")
+        # legend_loc='lower left',
+        # legend_ncol=2,
+        legend=False,
+        # label_prefix="t-SNE",
+        s=10,
+        )
+    plt.axis('off')
 
     plt.savefig(tsne_fig_file_dots, dpi=400)
     plt.close('all')
