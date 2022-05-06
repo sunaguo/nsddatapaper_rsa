@@ -32,8 +32,6 @@ from config import *
 # n_jobs = 1
 # n_sessions = 10
 
-targetspace = 'fsaverage'
-
 # # DKT atlas ROIS
 # ROIS = {
 #         1007: "ctx-lh-fusiform", 
@@ -57,146 +55,180 @@ targetspace = 'fsaverage'
 # group_level = "pathway"
 # ROIS = ["dorsal"]
 
-# set up directories
-base_dir = "/work2/07365/sguo19/stampede2/"
-nsd_dir = os.path.join(base_dir, 'NSD')
-proj_dir = os.path.join(base_dir, 'nsddatapaper_rsa')
-betas_dir = os.path.join(proj_dir, 'rsa')
+def rois_rdms(sub = "subj01",
+                n_sessions = 20,
+                # n_jobs = 1,
+                group_level="ROI_name",
+                ROIS = ['pVTC', 'aVTC', 'v1', 'v2', 'v3']
+                ):
 
-# sem_dir = os.path.join(proj_dir, 'derivatives', 'ecoset')
-# models_dir = os.path.join(proj_dir, 'rsa', 'serialised_models')
+    targetspace = 'fsaverage'
 
-# initiate nsd access
-nsda = NSDAccess(nsd_dir)
+    # set up directories
+    base_dir = "/work2/07365/sguo19/stampede2/"
+    nsd_dir = os.path.join(base_dir, 'NSD')
+    proj_dir = os.path.join(base_dir, 'nsddatapaper_rsa')
+    betas_dir = os.path.join(proj_dir, 'rsa')
 
-# path where we save the rdms
-outpath = os.path.join(betas_dir, 'roi_analyses')
-if not os.path.exists(outpath):
-    os.makedirs(outpath)
+    # sem_dir = os.path.join(proj_dir, 'derivatives', 'ecoset')
+    # models_dir = os.path.join(proj_dir, 'rsa', 'serialised_models')
 
-# ===== loading
-# === load parcellation
-# parc_path = os.path.join(nsd_dir, "nsddata", "freesurfer", sub, "mri", "aparc.DKTatlas+aseg.mgz")
-if "pVTC" in ROIS:
-    lh_file = os.path.join('./lh.highlevelvisual.mat')
-    rh_file = os.path.join('./rh.highlevelvisual.mat')
-    maskdata_lh = scipy.io.loadmat(lh_file)["lh"].squeeze()
-    maskdata_rh = scipy.io.loadmat(rh_file)["rh"].squeeze()
-else:
-    lh_file = os.path.join(nsd_dir, "nsddata", "freesurfer", "fsaverage", "label", 'lh.HCP_MMP1.mgz')
-    rh_file = os.path.join(nsd_dir, "nsddata", "freesurfer", "fsaverage", "label", 'rh.HCP_MMP1.mgz')
-    # maskdata = nib.load(parc_path).get_fdata().flatten()
-    maskdata_lh = nib.load(lh_file).get_fdata().squeeze()
-    maskdata_rh = nib.load(rh_file).get_fdata().squeeze()
+    # initiate nsd access
+    nsda = NSDAccess(nsd_dir)
 
-maskdata = np.hstack((maskdata_lh, maskdata_rh))
-print("loaded maskdata: ", maskdata.shape)
+    # path where we save the rdms
+    outpath = os.path.join(betas_dir, 'roi_analyses', sub)
+    if not os.path.exists(outpath):
+        os.makedirs(outpath)
 
-# === load ROIs
-ROI_path = os.path.join(proj_dir, "utils", "ROI_labels.tsv")
-ROI_df = pd.read_csv(ROI_path, sep='\t')
+    # ===== loading
+    # === load parcellation
+    # parc_path = os.path.join(nsd_dir, "nsddata", "freesurfer", sub, "mri", "aparc.DKTatlas+aseg.mgz")
+    if "pVTC" in ROIS:
+        lh_file = os.path.join('./lh.highlevelvisual.mat')
+        rh_file = os.path.join('./rh.highlevelvisual.mat')
+        maskdata_lh = scipy.io.loadmat(lh_file)["lh"].squeeze()
+        maskdata_rh = scipy.io.loadmat(rh_file)["rh"].squeeze()
+    else:
+        lh_file = os.path.join(nsd_dir, "nsddata", "freesurfer", "fsaverage", "label", 'lh.HCP_MMP1.mgz')
+        rh_file = os.path.join(nsd_dir, "nsddata", "freesurfer", "fsaverage", "label", 'rh.HCP_MMP1.mgz')
+        # maskdata = nib.load(parc_path).get_fdata().flatten()
+        maskdata_lh = nib.load(lh_file).get_fdata().squeeze()
+        maskdata_rh = nib.load(rh_file).get_fdata().squeeze()
 
-# === load conditions
-conditions = get_conditions(nsd_dir, sub, n_sessions)
-conditions = np.asarray(conditions).ravel()  # ntrials x 1
+    maskdata = np.hstack((maskdata_lh, maskdata_rh))
+    print("loaded maskdata: ", maskdata.shape)
 
-# then we find the valid trials for which we do have 3 repetitions.
-conditions_bool = [True if np.sum(conditions == x) == 3 else False for x in conditions]
-conditions_sampled = conditions[conditions_bool]
-# find the subject's unique condition list (sample pool)
-sample = np.unique(conditions[conditions_bool])
-print("sample pool size:", len(sample))
+    # === load ROIs
+    ROI_path = os.path.join(proj_dir, "utils", "ROI_labels.tsv")
+    ROI_df = pd.read_csv(ROI_path, sep='\t')
 
-# save conditions
-cond_out_path = os.path.join(outpath, f'{sub}_condition-list_session-{n_sessions}.npy')
-print(f'saving condition list for {sub}')
-np.save(cond_out_path, conditions_sampled)
-print("condition shape:", conditions_sampled.shape)
+    # === load conditions
+    conditions = get_conditions(nsd_dir, sub, n_sessions)
+    conditions = np.asarray(conditions).ravel()  # ntrials x 1
 
-# === load mean betas / calculate from full betas
-betas_mean_file = os.path.join(
-        outpath, f'{sub}_betas-list_{targetspace}_session-{n_sessions}_averaged.npy'
-)
+    # then we find the valid trials for which we do have 3 repetitions.
+    conditions_bool = [True if np.sum(conditions == x) == 3 else False for x in conditions]
+    conditions_sampled = conditions[conditions_bool]
+    # find the subject's unique condition list (sample pool)
+    sample = np.unique(conditions[conditions_bool])
+    print("sample pool size:", len(sample))
 
-if not os.path.exists(betas_mean_file):
-    # get betas
-    betas_mean = get_betas(
-        nsd_dir,
-        sub,
-        n_sessions,
-        targetspace=targetspace,
-    )
-    print(f'concatenating betas for {sub}')
-    betas_mean = np.concatenate(betas_mean, axis=1).astype(np.float32)
+    # save conditions
+    cond_out_path = os.path.join(outpath, f'{sub}_condition-list_session-{n_sessions}.npy')
+    print(f'saving condition list for {sub}')
+    np.save(cond_out_path, conditions_sampled)
+    print("condition shape:", conditions_sampled.shape)
 
-    print(f'averaging betas for {sub}')
-    betas_mean = average_over_conditions(
-        betas_mean,
-        conditions,
-        conditions_sampled,
-    ).astype(np.float32)
-
-    # print
-    print(f'saving condition averaged betas for {sub}')
-    np.save(betas_mean_file, betas_mean)
-
-else:
-    print(f'loading betas for {sub}')
-    betas_mean = np.load(betas_mean_file, allow_pickle=True)
-print("betas_mean: ", betas_mean.shape)
-
-# ===== make ROI RDMs & save
-for mask_name in ROIS:
-
-    rdm_file = os.path.join(
-        outpath, f'{sub}_{mask_name}_fullrdm_correlation_session-{n_sessions}.npy'
+    # === load mean betas / calculate from full betas
+    betas_mean_file = os.path.join(
+            outpath, f'{sub}_betas-list_{targetspace}_session-{n_sessions}_averaged.npy'
     )
 
-    if not os.path.exists(rdm_file):
-        print(f'working on ROI: {mask_name}')
-
-        # depending on grouping level, limit mask_df to corresponding small regions
-        mask_df = ROI_df[ ROI_df[group_level] == mask_name ]
-
-        # make mask
-        mask = np.array([False for _ in range(len(maskdata))])
-        for roi, roi_name in zip(mask_df["ROI_id"], mask_df["ROI_name"]):
-            mask = mask | (maskdata == roi)
-        print("mask shape:", mask.shape)
-
-        masked_betas = betas_mean[mask, :]
-        print("masked_betas shape:", masked_betas.shape)
-
-        good_vox = [
-            True if np.sum(
-                np.isnan(x)
-                ) == 0 else False for x in masked_betas]
-
-        if np.sum(good_vox) != len(good_vox):
-            print(f'found some NaN for ROI: {mask_name} - {sub}')
-
-        masked_betas = masked_betas[good_vox, :]
-        print("masked_betas shape after filtering with good_vox", masked_betas.shape)
-
-        # prepare for correlation distance
-        X = masked_betas.T
-        print("X shape:", X.shape)
-
-        print(f'computing RDM for roi: {mask_name}')
-        start_time = time.time()
-        rdm = pdist(X, metric='correlation')
-        print("rdm shape", rdm.shape)
-
-        if np.any(np.isnan(rdm)):
-            raise ValueError("found nan in rdm")
-
-        elapsed_time = time.time() - start_time
-        print(
-            'elapsedtime: ',
-            f'{time.strftime("%H:%M:%S", time.gmtime(elapsed_time))}'
+    if not os.path.exists(betas_mean_file):
+        # get betas
+        betas_mean = get_betas(
+            nsd_dir,
+            sub,
+            n_sessions,
+            targetspace=targetspace,
         )
-        print(f'saving full rdm for {mask_name} : {sub}')
-        np.save(
-            rdm_file,
-            rdm
+        print(f'concatenating betas for {sub}')
+        betas_mean = np.concatenate(betas_mean, axis=1).astype(np.float32)
+
+        print(f'averaging betas for {sub}')
+        betas_mean = average_over_conditions(
+            betas_mean,
+            conditions,
+            conditions_sampled,
+        ).astype(np.float32)
+
+        # print
+        print(f'saving condition averaged betas for {sub}')
+        np.save(betas_mean_file, betas_mean)
+
+    else:
+        print(f'loading betas for {sub}')
+        betas_mean = np.load(betas_mean_file, allow_pickle=True)
+    print("betas_mean: ", betas_mean.shape)
+
+    # ===== make ROI RDMs & save
+    for mask_name in ROIS:
+
+        rdm_file = os.path.join(
+            outpath, f'{sub}_{mask_name}_fullrdm_correlation_session-{n_sessions}.npy'
         )
+
+        if not os.path.exists(rdm_file):
+            print(f'working on ROI: {mask_name}')
+
+            # depending on grouping level, limit mask_df to corresponding small regions
+            mask_df = ROI_df[ ROI_df[group_level] == mask_name ]
+
+            # make mask
+            mask = np.array([False for _ in range(len(maskdata))])
+            for roi, roi_name in zip(mask_df["ROI_id"], mask_df["ROI_name"]):
+                mask = mask | (maskdata == roi)
+            print("mask shape:", mask.shape)
+
+            masked_betas = betas_mean[mask, :]
+            print("masked_betas shape:", masked_betas.shape)
+
+            good_vox = [
+                True if np.sum(
+                    np.isnan(x)
+                    ) == 0 else False for x in masked_betas]
+
+            if np.sum(good_vox) != len(good_vox):
+                print(f'found some NaN for ROI: {mask_name} - {sub}')
+
+            masked_betas = masked_betas[good_vox, :]
+            print("masked_betas shape after filtering with good_vox", masked_betas.shape)
+
+            # prepare for correlation distance
+            X = masked_betas.T
+            print("X shape:", X.shape)
+
+            print(f'computing RDM for roi: {mask_name}')
+            start_time = time.time()
+            rdm = pdist(X, metric='correlation')
+            print("rdm shape", rdm.shape)
+
+            if np.any(np.isnan(rdm)):
+                raise ValueError("found nan in rdm")
+
+            elapsed_time = time.time() - start_time
+            print(
+                'elapsedtime: ',
+                f'{time.strftime("%H:%M:%S", time.gmtime(elapsed_time))}'
+            )
+            print(f'saving full rdm for {mask_name} : {sub}')
+            np.save(
+                rdm_file,
+                rdm
+            )
+
+
+if __name__ == "__main__":
+    from config import *
+
+    n_subjects = 8
+    subs = ['subj0{}'.format(x+1) for x in range(n_subjects)]  
+    ROI_dicts = {
+        "pathway": ["ventral"],
+        # "region": ["aVTC", "pVTC", "v1", "v2", "v3"],
+        "pathway": ["dorsal"],
+        "region": ["SPL", "IPL", "PCC"],
+    }
+
+    for sub in subs:  
+        print(f"***** Running rois_rdms on {sub}... *****")
+        for group_level, ROIS in ROI_dicts.items():
+            print(f"*** running {group_level} with {ROIS} ***")
+
+            rois_rdms(sub=sub,
+                        n_sessions=n_sessions,
+                        n_jobs=n_jobs,
+                        group_level=group_level,
+                        ROIS=ROIS,
+                        )
