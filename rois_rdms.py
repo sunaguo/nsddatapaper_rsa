@@ -73,8 +73,8 @@ def rois_rdms(sub = "subj01",
     # sem_dir = os.path.join(proj_dir, 'derivatives', 'ecoset')
     # models_dir = os.path.join(proj_dir, 'rsa', 'serialised_models')
 
-    # initiate nsd access
-    nsda = NSDAccess(nsd_dir)
+    # # initiate nsd access
+    # nsda = NSDAccess(nsd_dir)
 
     # path where we save the rdms
     outpath = os.path.join(betas_dir, 'roi_analyses', sub)
@@ -126,6 +126,7 @@ def rois_rdms(sub = "subj01",
     )
 
     if not os.path.exists(betas_mean_file):
+        print(f"generating average betas for {sub}")
         # get betas
         betas_mean = get_betas(
             nsd_dir,
@@ -148,7 +149,7 @@ def rois_rdms(sub = "subj01",
         np.save(betas_mean_file, betas_mean)
 
     else:
-        print(f'loading betas for {sub}')
+        print(f'loading saved betas for {sub}')
         betas_mean = np.load(betas_mean_file, allow_pickle=True)
     print("betas_mean: ", betas_mean.shape)
 
@@ -212,23 +213,23 @@ def rois_rdms(sub = "subj01",
 if __name__ == "__main__":
     from config import *
 
-    n_subjects = 8
-    subs = ['subj0{}'.format(x+1) for x in range(n_subjects)]  
+    n_subjects = 3
+    subs = ['subj0{}'.format(x+6) for x in range(n_subjects)]  
     ROI_dicts = {
-        "pathway": ["ventral"],
+        # "pathway": ["ventral"],
         # "region": ["aVTC", "pVTC", "v1", "v2", "v3"],
         "pathway": ["dorsal"],
         "region": ["SPL", "IPL", "PCC"],
     }
 
     for sub in subs:  
-        print(f"***** Running rois_rdms on {sub}... *****")
+        print(f"\n***** Running rois_rdms on {sub}... *****")
         for group_level, ROIS in ROI_dicts.items():
             print(f"*** running {group_level} with {ROIS} ***")
 
             rois_rdms(sub=sub,
                         n_sessions=n_sessions,
-                        n_jobs=n_jobs,
+                        # n_jobs=n_jobs,
                         group_level=group_level,
                         ROIS=ROIS,
                         )

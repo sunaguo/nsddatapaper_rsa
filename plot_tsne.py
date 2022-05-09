@@ -63,7 +63,10 @@ from utils.utils import category_dict, mds
 def plot_tsne(sub = "subj01",
                 n_sessions = 20,
                 n_jobs = 1,
-                ROIS = ['pVTC', 'aVTC', 'v1', 'v2', 'v3']
+                ROIS = ['pVTC', 'aVTC', 'v1', 'v2', 'v3'],
+                color="NSD",
+                plot_minor=True,
+                plot_tsne_with_figure=[True, True, False, False, False]
                 ):
     # ===== set up directories
     base_dir = "/work2/07365/sguo19/stampede2/"
@@ -98,12 +101,6 @@ def plot_tsne(sub = "subj01",
     #     if not os.path.exists(category_figures):
     #         os.makedirs(category_figures)
 
-    # nsda = NSDAccess(nsd_dir)
-
-    # # ===== get the sample images
-    # print("Loading all images for tSNE with figures...")
-    # sample_im = nsda.read_images(list(sample-1))
-
     print(f"***** Plotting for {sub}... *****")
     # ===== subj specific image category data
     # load conditions data
@@ -117,6 +114,11 @@ def plot_tsne(sub = "subj01",
 
     # retrieve the category matrix for the sample
     category_matrix = get_labels(sub, betas_dir, nsd_dir, sample-1, n_sessions=n_sessions, n_jobs=n_jobs)
+
+    # ===== get the sample images
+    nsda = NSDAccess(nsd_dir)
+    print("Loading all images for tSNE with figures...")
+    sample_im = nsda.read_images(list(sample-1))
 
     # # ===== labels for binary maps
     # # load labels
@@ -141,11 +143,12 @@ def plot_tsne(sub = "subj01",
     # category_colors = cm.RdYlBu(range(80))  # there are only 80 categories in COCO in general??
 
     # ===== colormap
-    # # three axis
-    # cate_colors = ["red", "gold", "grey", "mediumorchid", "limegreen", "cyan", "blue", ]
-    # NSD colors
-    cate_colors = ["black", "dimgray", "lightgray", "darkgray", "red", "purple", "blue", ]
-
+    if color == "minor": 
+        # three axis
+        cate_colors = ["red", "gold", "grey", "mediumorchid", "limegreen", "cyan", "blue", ]
+    elif color == "NSD": 
+        # NSD colors
+        cate_colors = ["black", "dimgray", "lightgray", "darkgray", "red", "purple", "blue", ]
 
     # ===== prepare the class labels
     class_labels = []
@@ -201,6 +204,9 @@ def plot_tsne(sub = "subj01",
         tsne_fig_file_dots = os.path.join(
             tsne_figures, f'{sub}_{roi}_tsne_dots_session-{n_sessions}.png'
         )
+        tsne_fig_file_dots_minor_axis = os.path.join(
+            tsne_figures, f'{sub}_{roi}_tsne_dots_session-{n_sessions}_axis-minor.png'
+        )
         mds_fig_file_dots = os.path.join(
             tsne_figures, f'{sub}_{roi}_mds_dots_session-{n_sessions}.png'
         )
@@ -248,6 +254,7 @@ def plot_tsne(sub = "subj01",
             print("loading from saved tsne file...")
             Y_tsne = np.load(tsne_file)
 
+        # ======= PLOTS ======= 
         # # === plot mds
         # scprep.plot.scatter2d(
         #     Y_mds,
@@ -284,39 +291,67 @@ def plot_tsne(sub = "subj01",
         plt.close('all')
         print("saved tSNE image with dots!")
 
-        # # === also plot the figure with all pictures
-        # # but only for pVTC & aVTC
-        # if roi in ["aVTC", "pVTC"]:
-        #     print("plotting tSNE with images...")
-        #     fig = plt.figure(figsize=(20, 20))
-        #     ax = plt.gca()
-        #     # extent : scalars (left, right, bottom, top)
-        #     scaler = 0.27
-        #     # lets say you have 40 images, first 20 are animate
-        #     for i, pat in enumerate(Y_tsne):
-        #         x, y = pat
-        #         # plot image
-        #         im = sample_im[i, :, :, :]
+        # plot minor axis
+        if plot_minor: 
+            unique_labels = sorted(set(class_labels))
 
-        #         ax.imshow(
-        #             im,
-        #             aspect='auto',
-        #             extent=(
-        #                 x-(0.92*scaler),
-        #                 x+(0.92*scaler),
-        #                 y-scaler,
-        #                 y+scaler
-        #             ),
-        #             zorder=1
-        #         )
+            fig, axes = plt.subplots(len(unique_labels),1, figsize=(5,4.5*len(unique_labels)))
+            for catei, (cate, color) in enumerate(zip(unique_labels, cate_colors)):
+                color_ls = ["whitesmoke" for _ in range(len(cate_colors))]
+                color_ls[catei] = color
+                
+                ax = axes[catei]
+                scprep.plot.scatter2d(
+                    Y_tsne,
+                    c=class_labels,
+                    # figsize=(5, 5),
+                    cmap=color_ls,
+                    ticks=False,
+                    legend=False,
+                    label_prefix="t-SNE",
+                    s = 10,
+                    title=f"{roi} {cate}",
+                    ax=ax  #[1]
+                )
+                ax.axis('off')
 
-        #     ax.set_xlim([Y_tsne[:,0].min()-0.5, Y_tsne[:,0].max()+0.5])
-        #     ax.set_ylim([Y_tsne[:,1].min()-0.5, Y_tsne[:,1].max()+0.5])
-        #     ax.set_axis_off()
+            plt.tight_layout()
+            plt.savefig(tsne_fig_file_dots_minor_axis, dpi=400)
+            plt.close('all')
+            print("saved tSNE image with dots for minor axis!")
 
-        #     plt.savefig(tsne_fig_file, dpi=400)
-        #     plt.close('all')
-        #     print("saved tSNE image with images!")
+        # === also plot the figure with all pictures
+        if plot_tsne_with_figure[roi_i]: 
+            print("plotting tSNE with images...")
+            fig = plt.figure(figsize=(20, 20))
+            ax = plt.gca()
+            # extent : scalars (left, right, bottom, top)
+            scaler = 0.27
+            # lets say you have 40 images, first 20 are animate
+            for i, pat in enumerate(Y_tsne):
+                x, y = pat
+                # plot image
+                im = sample_im[i, :, :, :]
+
+                ax.imshow(
+                    im,
+                    aspect='auto',
+                    extent=(
+                        x-(0.92*scaler),
+                        x+(0.92*scaler),
+                        y-scaler,
+                        y+scaler
+                    ),
+                    zorder=1
+                )
+
+            ax.set_xlim([Y_tsne[:,0].min()-0.5, Y_tsne[:,0].max()+0.5])
+            ax.set_ylim([Y_tsne[:,1].min()-0.5, Y_tsne[:,1].max()+0.5])
+            ax.set_axis_off()
+
+            plt.savefig(tsne_fig_file, dpi=400)
+            plt.close('all')
+            print("saved tSNE image with images!")
 
         # # now cycle through the categories
 
@@ -341,14 +376,36 @@ def plot_tsne(sub = "subj01",
 if __name__ == "__main__":
     from config import *
 
-    n_subjects = 2
-    subs = ['subj0{}'.format(x+7) for x in range(n_subjects)]  
+    # n_subjects = 1
+    # subs = ['subj0{}'.format(x+8) for x in range(n_subjects)]  
+    subs = ['subj08']
+    ROI_dicts = {
+        # "pathway": ["ventral"],
+        # "region": ["aVTC", "pVTC", "v1", "v2", "v3"],
+        # "pathway": ["dorsal"],
+        "region": ["IPL", "PCC"],  #"SPL", 
+    }
+    # TODO: subj04 regions, -- going
+    #       subj06 regions,
+    #       subj08 IPL tSNE with images, PCC -- going
+    plot_tsne_with_figures = {
+        # "pathway": [True],
+        "region": [True],  #True, True, 
+    }
+    # plot_minors = {
+    # }
 
     for sub in subs:  
-        print(f"***** Plotting {sub}... *****")
+        print(f"\n***** Plotting tSNE for {sub}... *****")
+        for (group_level, ROIS), plot_tsne_with_figure in zip(ROI_dicts.items(), plot_tsne_with_figures):
+            print(f"*** running {group_level} with {ROIS} ***")
 
-        plot_tsne(sub=sub,
-                    n_sessions=n_sessions,
-                    n_jobs=n_jobs,
-                    ROIS=ROIS,
-                    )
+            plot_tsne(sub=sub,
+                        n_sessions=n_sessions,
+                        n_jobs=n_jobs,
+                        # group_level=group_level,
+                        ROIS=ROIS,
+                        color=color,
+                        plot_minor=plot_minor,
+                        plot_tsne_with_figure=plot_tsne_with_figure
+                        )
