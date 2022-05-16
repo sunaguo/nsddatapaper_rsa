@@ -4,6 +4,7 @@
 """
 import numpy as np
 import nibabel as nb
+import pandas as pd
 from scipy.stats import zscore
 from nsd_access import NSDAccess
 import os
@@ -195,6 +196,7 @@ def get_betas(nsd_dir, sub, n_sessions, mask=None, targetspace='func1pt8mm'):
 
 def get_labels(sub, betas_dir, nsd_dir, condition_list, n_sessions=10, n_jobs=1):
     """labels = get_labels(sub, betas_dir, nsd_dir, condition_list)
+    ***This function has been modified from the original NSD paper version by sunaguo***
 
     Arguments:
     __________
@@ -215,10 +217,8 @@ def get_labels(sub, betas_dir, nsd_dir, condition_list, n_sessions=10, n_jobs=1)
 
     nsda = NSDAccess(nsd_dir)
 
-    # get the categories
-    labels = np.load(os.path.join(
-        betas_dir, f'all_stims_category_labels_session-10.npy'
-    ), allow_pickle=True)
+    # get all COCO categories
+    labels = np.array(pd.read_csv("./utils/COCO_labels.tsv", sep="\t")["label"])
 
     label_file = os.path.join(betas_dir, f'{sub}_sample_labels_session-{n_sessions}.npy')
 

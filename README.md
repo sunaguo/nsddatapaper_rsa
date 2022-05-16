@@ -1,14 +1,17 @@
-# nsddatapaper_rsa
+# nsddatapaper_rsa (extension of original analyses)
 
-## rsa analyses for the data paper
+## Extension of rsa analyses for the data paper
 
-this is a set of scripts that will process nsd fmri data,
-mask in a set of regions of interest along the ventral stream,
-compute representational dissimilarity matrices from all pairs
-condition activity patterns, and finally plot the TSNE 
-two-dimensional solutions for those RDMs.
+This repo (forked from the original rsa analyses repo) contains modified scripts and additional analyses that stems from the paper, focusing on characterizing the represenations in the parietal lobe and comparing the selectivity between the dorsal stream and the ventral stream. 
 
-### to install simply clone this repo, cd to it's directory and 
+Overview of analyses steps: 
+
+* Single-trial GLM (betas provided in NSD dataset);
+* RSA (representational dissimilarity matrices, RDMs, from all pairs condition activity patterns);
+* tSNE of the RDMs
+
+## Installation notes from original repo
+to install simply clone this repo, cd to it's directory and 
 
 ```bash
 python setupy.py develop
@@ -30,26 +33,35 @@ Natural Scenes Dataset. For more details and tutorials see the repo here: https:
 It might be worth familiarising yourself with the Natural Scenes Dataset before you begin too.
 You can do so with the [NSD Data Manual](https://cvnlab.slite.com/app/channels/CT9Fwl4_hc)
 
-### first, you need to compute the category labels with
+## Data Setup
+Follow the instructions [in the NSD Manual](https://cvnlab.slite.com/p/channel/CPyFRAyDYpxdkPK6YbB5R1/notes/dC~rBTjqjb) to download the data needed from AWS (create free account; install AWS CLI). The dataset should be contained in a directory named "NSD" parallel to this repo. 
+
+## Script Pipeline
+
+### First, compute the category labels with
 
 ```bash
-python nsd_prepare_category_labels.py
+python category_labels.py
 ```
+This saves the category labels for specfied subjects for specified number of sessions in one file, for faster access in later processing. 
 
-### second, you need to prepare the masked betas in rois along the ventral stream with
+### Second, prepare the masked betas in rois along the ventral stream with
 
 ```bash
-python nsd_prepare_rois_rdms.py 0
+python rois_rdms.py
 ```
+Load betas for specified sessions; filter for trials with 3 presentations; fitler for good voxels; compute & save RDMs.
 
-this will prepare RDMs for all the ROIs for subject 0, which is in fact
-NSD subj01.
-
-
-### finally, you can plot the TSNE or MDS with
+### Finally, plot the TSNE with
 
 ```bash
-python nsd_plot_tsne.py 0
+python plot_tsne.py
 ```
+Compute tSNE, plot & save tSNE plots with dots/images. 
 
-this will create a series of plots from the paper, for subj01.
+### NEW: group COCO categories with ROI activities with
+
+```bash
+python category_grouping.py
+```
+Currently running PCA on customized voxel_category "betas" matrix, plot & save category geometry in space formed with the first 3 PCs.
