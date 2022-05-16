@@ -113,6 +113,10 @@ def category_grouping(sub = "subj01",
         pca = PCA(n_components=n_pcs)
         pca = pca.fit(vox_cate_mat)
         pcs = pca.components_
+        np.save(f"{figures_outpath}/cate_pcs/{sub}_{mask_name}_{n_sessions}_pca.npy", pca)
+        print(f"saved {mask_name} pca object for {sub}!")
+        # # FIXME
+        # continue
 
         # make normalized cate-color map
         colors = np.zeros((80,4))
@@ -180,11 +184,11 @@ def category_grouping(sub = "subj01",
 if __name__ == "__main__":
     from config import *
 
-    n_subjects = 1
+    n_subjects = 8
     subs = ['subj0{}'.format(x+1) for x in range(n_subjects)]  
     ROI_dicts = {
-        # "pathway": ["dorsal"],
-        "pathway": ["ventral"],
+        "pathway": ["dorsal"],
+        # "pathway": ["ventral"],
         # "region": ["aVTC", "pVTC", "v1", "v2", "v3"],
         # "region": ["SPL", "IPL", "PCC"],
     }
