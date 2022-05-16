@@ -64,6 +64,7 @@ def plot_tsne(sub = "subj01",
                 n_sessions = 20,
                 n_jobs = 1,
                 ROIS = ['pVTC', 'aVTC', 'v1', 'v2', 'v3'],
+                rdm_dim = "trial",
                 color="NSD",
                 plot_minor=True,
                 plot_tsne_with_figure=[True, True, False, False, False]
@@ -151,7 +152,7 @@ def plot_tsne(sub = "subj01",
         cate_colors = ["black", "dimgray", "lightgray", "darkgray", "red", "purple", "blue", ]
 
     # ===== prepare the class labels
-    class_labels = []
+    class_labels = []  # label for each image
     for categ_v in category_matrix:
 
         # category_dict: 1 is animate, 0 inanimate
@@ -213,9 +214,14 @@ def plot_tsne(sub = "subj01",
 
         if not os.path.exists(tsne_file):
             # load RDM
-            rdm_file = os.path.join(
-                outpath, f'{sub}_{roi}_fullrdm_correlation_session-{n_sessions}.npy'
-            )
+            if rdm_dim == "trial": 
+                rdm_file = os.path.join(
+                    outpath, f'{sub}_{roi}_fullrdm_correlation_session-{n_sessions}.npy'
+                )
+            else: 
+                rdm_file = os.path.join(
+                    outpath, f'{sub}_{roi}_fullrdm-{rdm_dim}_correlation_session-{n_sessions}.npy'
+                )
             print(f'loading full rdm for {roi} : {sub}')
             rdm = np.load(rdm_file, allow_pickle=True)
 
@@ -405,6 +411,7 @@ if __name__ == "__main__":
                         n_jobs=n_jobs,
                         # group_level=group_level,
                         ROIS=ROIS,
+                        rdm_dim = rdm_dim,
                         color=color,
                         plot_minor=plot_minor,
                         plot_tsne_with_figure=plot_tsne_with_figure

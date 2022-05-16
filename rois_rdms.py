@@ -8,7 +8,7 @@ import nibabel as nib
 import scipy.io
 from scipy.spatial.distance import pdist
 from nsd_access import NSDAccess
-from utils.nsd_get_data import get_conditions, get_betas
+from utils.nsd_get_data import get_conditions, get_betas, get_labels
 from utils.utils import average_over_conditions
 from config import *
 
@@ -57,9 +57,10 @@ from config import *
 
 def rois_rdms(sub = "subj01",
                 n_sessions = 20,
-                # n_jobs = 1,
+                n_jobs = 1,
                 group_level="ROI_name",
-                ROIS = ['pVTC', 'aVTC', 'v1', 'v2', 'v3']
+                ROIS = ['pVTC', 'aVTC', 'v1', 'v2', 'v3'],
+                rdm_dim = "trial",
                 ):
 
     targetspace = 'fsaverage'
@@ -155,10 +156,15 @@ def rois_rdms(sub = "subj01",
 
     # ===== make ROI RDMs & save
     for mask_name in ROIS:
-
-        rdm_file = os.path.join(
-            outpath, f'{sub}_{mask_name}_fullrdm_correlation_session-{n_sessions}.npy'
-        )
+        if rdm_dim == "trial": 
+            rdm_file = os.path.join(
+                outpath, f'{sub}_{mask_name}_fullrdm_correlation_session-{n_sessions}.npy'
+            )
+        else: 
+            rdm_file = os.path.join(
+                outpath, f'{sub}_{mask_name}_fullrdm-{rdm_dim}_correlation_session-{n_sessions}.npy'
+            )
+            
 
         if not os.path.exists(rdm_file):
             print(f'working on ROI: {mask_name}')
@@ -166,7 +172,7 @@ def rois_rdms(sub = "subj01",
             # depending on grouping level, limit mask_df to corresponding small regions
             mask_df = ROI_df[ ROI_df[group_level] == mask_name ]
 
-            # make mask
+            # === make mask
             mask = np.array([False for _ in range(len(maskdata))])
             for roi, roi_name in zip(mask_df["ROI_id"], mask_df["ROI_name"]):
                 mask = mask | (maskdata == roi)
@@ -180,23 +186,42 @@ def rois_rdms(sub = "subj01",
                     np.isnan(x)
                     ) == 0 else False for x in masked_betas]
 
+            # n_selected_voxels x n_trials
             if np.sum(good_vox) != len(good_vox):
                 print(f'found some NaN for ROI: {mask_name} - {sub}')
 
             masked_betas = masked_betas[good_vox, :]
             print("masked_betas shape after filtering with good_vox", masked_betas.shape)
 
-            # prepare for correlation distance
-            X = masked_betas.T
-            print("X shape:", X.shape)
+            # === prepare for correlation distance
+            if rdm_dim == "trial": 
+                # trial tSNE: dots are indiv image shown
+                X = masked_betas.T
+            elif rdm_dim == "cate":
+                # category tSNE: 80 dots for COCO cates
+                label_matrix = get_labels(sub, betas_dir, nsd_dir, sample-1, n_sessions=n_sessions, n_jobs=1)
+                # make vox-by-cate mat
+                print(f"making voxel category matrix...")
+                # matmal to get sum of product
+                vox_cate_mat = np.dot(masked_betas, label_matrix)
+                # normalize by cate frequency
+                freq = label_matrix.sum(axis=0)
+                # vox_cate_mat: voxel x 80
+                vox_cate_mat = np.divide(vox_cate_mat, freq, out=np.zeros_like(vox_cate_mat), where=freq!=0)
+                X = vox_cate_mat.T
 
+            print(f"X shape with rdm dim {rdm_dim}:", X.shape)  # n_features x n_voxels
+
+            # === compute RDM
             print(f'computing RDM for roi: {mask_name}')
             start_time = time.time()
             rdm = pdist(X, metric='correlation')
             print("rdm shape", rdm.shape)
 
             if np.any(np.isnan(rdm)):
-                raise ValueError("found nan in rdm")
+                # raise ValueError("found nan in rdm")
+                print("found nan in rdm. abort.")
+                return 
 
             elapsed_time = time.time() - start_time
             print(
@@ -213,13 +238,14 @@ def rois_rdms(sub = "subj01",
 if __name__ == "__main__":
     from config import *
 
-    n_subjects = 3
-    subs = ['subj0{}'.format(x+6) for x in range(n_subjects)]  
+    # n_subjects = 3
+    # subs = ['subj0{}'.format(x+6) for x in range(n_subjects)]  
+    subs = ['subj01', 'subj05']
     ROI_dicts = {
         # "pathway": ["ventral"],
         # "region": ["aVTC", "pVTC", "v1", "v2", "v3"],
         "pathway": ["dorsal"],
-        "region": ["SPL", "IPL", "PCC"],
+        # "region": ["SPL", "IPL", "PCC"],
     }
 
     for sub in subs:  
@@ -232,4 +258,5 @@ if __name__ == "__main__":
                         # n_jobs=n_jobs,
                         group_level=group_level,
                         ROIS=ROIS,
+                        rdm_dim = rdm_dim,
                         )
