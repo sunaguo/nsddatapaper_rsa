@@ -1,6 +1,7 @@
 # usr defined
 *.npy
-*.svg
+rsa/roi_analyses/tsne_figures/*
+rsa/archive/*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
