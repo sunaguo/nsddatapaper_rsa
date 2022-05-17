@@ -10,7 +10,9 @@ Overview of analyses steps:
 * RSA (representational dissimilarity matrices, RDMs, from all pairs condition activity patterns);
 * Multidimensional scaling (MDS) & tSNE
 
-*This repo contains an ipynp for scratch analyses, presentations slides, and result figures, which may take a lot of space/time to download. We recommend partial clone or sparse chekout for the scripts olnly.*
+*This repo contains an ipynp for scratch analyses and result figures, which may take a lot of space/time to download. We recommend partial clone or sparse chekout for the scripts olnly.*
+
+For a summary of the analyses done and the general findings, see [these slides](https://docs.google.com/presentation/d/e/2PACX-1vSqNKEfTCOq6PhJ6d46aWK-1sBtqqb4qJeXrqkflmJ7RLXgj7DZEb_24tm73IKHLDjs2CBUYnZkqrLx/pub?start=false&loop=false&delayms=60000).
 
 ## Installation notes from original repo
 to install simply clone this repo, cd to it's directory and 
