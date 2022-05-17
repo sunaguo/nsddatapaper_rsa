@@ -19,12 +19,9 @@ from utils.nsd_get_data import get_conditions, get_betas, get_labels
 from utils.utils import average_over_conditions
 from config import *
 
-"""
-    module to gather the region of interest rdms
-"""
-
 def rois_rdms(sub = "subj01",
                 n_sessions = 20,
+                n_jobs=1,
                 group_level="ROI_name",
                 ROIS = ['pVTC', 'aVTC', 'v1', 'v2', 'v3'],
                 rdm_dim = "trial",
@@ -172,7 +169,8 @@ def rois_rdms(sub = "subj01",
                 X = masked_betas.T
             elif rdm_dim == "cate":
                 # category tSNE: 80 dots for COCO cates
-                label_matrix = get_labels(sub, betas_dir, nsd_dir, sample-1, n_sessions=n_sessions, n_jobs=1)
+                # *** the underlying nsd_access method is modified with Parallel. Original does not take n_jobs ***
+                label_matrix = get_labels(sub, betas_dir, nsd_dir, sample-1, n_sessions=n_sessions, n_jobs=n_jobs)
                 # make vox-by-cate mat
                 print(f"making voxel category matrix...")
                 # matmal to get sum of product
@@ -228,7 +226,7 @@ if __name__ == "__main__":
 
             rois_rdms(sub=sub,
                         n_sessions=n_sessions,
-                        # n_jobs=n_jobs,
+                        n_jobs=n_jobs,
                         group_level=group_level,
                         ROIS=ROIS,
                         rdm_dim = rdm_dim,

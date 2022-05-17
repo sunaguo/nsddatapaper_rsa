@@ -2,13 +2,15 @@
 
 ## Extension of rsa analyses for the data paper
 
-This repo (forked from the original rsa analyses repo) contains modified scripts and additional analyses that stems from the paper, focusing on characterizing the represenations in the parietal lobe and comparing the selectivity between the dorsal stream and the ventral stream. 
+This repo (forked from the original rsa analyses) contains modified scripts and additional analyses that stems from the paper, focusing on characterizing the represenations in the parietal lobe and comparing the selectivity between the dorsal stream and the ventral stream. 
 
 Overview of analyses steps: 
 
 * Single-trial GLM (betas provided in NSD dataset);
 * RSA (representational dissimilarity matrices, RDMs, from all pairs condition activity patterns);
-* tSNE of the RDMs
+* Multidimensional scaling (MDS) & tSNE
+
+*This repo contains an ipynp for scratch analyses, presentations slides, and result figures, which may take a lot of space/time to download. We recommend partial clone or sparse chekout for the scripts olnly.*
 
 ## Installation notes from original repo
 to install simply clone this repo, cd to it's directory and 

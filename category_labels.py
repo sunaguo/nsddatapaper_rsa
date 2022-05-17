@@ -51,6 +51,7 @@ if not op.exists(save_stim):
         # find the subject's condition list (sample pool)
         sample = np.unique(conditions[conditions_bool])
         # retrieve the category matrix for the sample & save with funct internal process
+        # *** the underlying nsd_access method is modified with Parallel. Original does not take n_jobs ***
         _ = get_labels(sub, betas_dir, nsd_dir, sample-1, n_sessions=n_sessions, n_jobs=n_jobs)
 
     # this is the 73K format condition name for all 213 000 trials

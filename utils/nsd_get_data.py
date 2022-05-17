@@ -235,6 +235,7 @@ def get_labels(sub, betas_dir, nsd_dir, condition_list, n_sessions=10, n_jobs=1)
         # text label to index
 
         # get the specific labels for the condition list and binarise
+        # *** the nsda method is modified with Parallel. Original does not take n_jobs ***
         categories = nsda.read_image_coco_category(
             condition_list, n_jobs=n_jobs
         )

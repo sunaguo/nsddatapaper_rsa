@@ -1,3 +1,12 @@
+"""
+This script groups 80 COCO categories with cortical ROI activities and make plots of 
+these categories in low dimensional spaces, 
+i.e., similar operation as before for unique images, but now for categories.
+(See presentation slides for details)
+"voxel_category_matrix" from dot(betas, image_category_matrix).
+Dimensionality reduction with PCA.
+"""
+
 import os
 import numpy as np
 from nsd_access import NSDAccess
@@ -15,13 +24,12 @@ from config import *
 
 def category_grouping(sub = "subj01",
                 n_sessions = 20,
-                # n_jobs = 1,
+                n_jobs=1,
                 group_level="pathway",
                 ROIS = ["dorsal"],
-                # color="NSD",
-                # plot_minor=True,
-                # plot_tsne_with_figure=[True, True, False, False, False]
+                plot_3D = False,  # takes a long time to make gif so only do if needed
                 ):
+    # ===== setup directories
     base_dir = "/work2/07365/sguo19/stampede2/"
     nsd_dir = os.path.join(base_dir, 'NSD')
     proj_dir = os.path.join(base_dir, 'nsddatapaper_rsa')
@@ -30,13 +38,10 @@ def category_grouping(sub = "subj01",
     figures_outpath = os.path.join(betas_dir, 'roi_analyses')
     outpath = os.path.join(betas_dir, 'roi_analyses', sub)
 
-    nsda = NSDAccess(nsd_dir)
-
+    # ========== same loading process as in roi_rdm.py ===========
     # ===== load labels
     # all categories in COCO (80)
-    labels = np.load(f"./rsa/all_stims_category_labels_session-{n_sessions}.npy", allow_pickle=True)
-    all_labels = np.array(sorted(list(set(np.concatenate(labels)))))
-
+    all_labels = np.array(pd.read_csv("./utils/COCO_labels.tsv", sep="\t")["label"])
     # load category label
     label_file = os.path.join(betas_dir, f'{sub}_sample_labels_session-{n_sessions}.npy')
 
@@ -53,7 +58,8 @@ def category_grouping(sub = "subj01",
         # find the subject's condition list (sample pool)
         sample = np.unique(conditions[conditions_bool])
 
-        label_matrix = get_labels(sub, betas_dir, nsd_dir, sample-1, n_sessions=n_sessions, n_jobs=1)
+        # *** the underlying nsd_access method is modified with Parallel. Original does not take n_jobs ***
+        label_matrix = get_labels(sub, betas_dir, nsd_dir, sample-1, n_sessions=n_sessions, n_jobs=n_jobs)
 
     print(f"labels shape: {all_labels.shape}, {label_matrix.shape}")
 
@@ -81,7 +87,7 @@ def category_grouping(sub = "subj01",
         mask_df = ROI_df[ ROI_df[group_level] == mask_name ]
 
         mask = np.array([False for _ in range(len(maskdata))])
-        for roi, roi_name in zip(mask_df["ROI_id"], mask_df["ROI_name"]):
+        for roi, _ in zip(mask_df["ROI_id"], mask_df["ROI_name"]):
             mask = mask | (maskdata == roi)
         print("mask shape:", mask.shape)
 
@@ -99,6 +105,7 @@ def category_grouping(sub = "subj01",
         masked_betas = masked_betas[good_vox, :]
         print("masked_betas shape after filtering with good_vox", masked_betas.shape)
 
+        # ========== new stuff ==========
         # === make voxel by category matrix
         print(f"making voxel category matrix...")
         # matmal to get sum of product
@@ -108,27 +115,23 @@ def category_grouping(sub = "subj01",
         # vox_cate_mat: voxel x 80
         vox_cate_mat = np.divide(vox_cate_mat, freq, out=np.zeros_like(vox_cate_mat), where=freq!=0)
 
-        # n_pcs = n_pcs
         print(f"Doing PCA...")
         pca = PCA(n_components=n_pcs)
         pca = pca.fit(vox_cate_mat)
         pcs = pca.components_
         np.save(f"{figures_outpath}/cate_pcs/{sub}_{mask_name}_{n_sessions}_pca.npy", pca)
         print(f"saved {mask_name} pca object for {sub}!")
-        # # FIXME
-        # continue
 
-        # make normalized cate-color map
+        # make normalized cate-color map & color categories by the PC value they have 
         colors = np.zeros((80,4))
         for i in range(3):
             colors[:,i] = (pcs[i] - pcs[i].min()) / (pcs[i].max() - pcs[i].min()).T
         colors[:,3] += 1
-
         # save colormap
         np.save(f"{figures_outpath}/cate_pcs/{sub}_{mask_name}_{n_sessions}_colormap.npy", colors)
         print(f"Color axis saved!")
 
-        # ===== plot 
+        # ===== plot categories in PC space
         # === 2D plots
         print("plotting 2D plots...")
         fig, axes = plt.subplots(3,1,figsize=(10,24))
@@ -159,26 +162,27 @@ def category_grouping(sub = "subj01",
         plt.close('all')
         print("saved 2D category PC plots!")
 
-        # # === 3D plots
-        # print("plotting 3D plots...")
-        # fig = plt.figure(figsize=(15,15))
-        # ax = plt.axes(projection='3d')
-        # ax.scatter(pcs[0], pcs[1], pcs[2], s=50, c=colors)
-        # ax.set_xlabel('pc1')
-        # ax.set_ylabel('pc2')
-        # ax.set_zlabel('pc3')
+        # === 3D plots
+        if plot_3D: 
+            print("plotting 3D plots...")
+            fig = plt.figure(figsize=(15,15))
+            ax = plt.axes(projection='3d')
+            ax.scatter(pcs[0], pcs[1], pcs[2], s=50, c=colors)
+            ax.set_xlabel('pc1')
+            ax.set_ylabel('pc2')
+            ax.set_zlabel('pc3')
 
-        # for i in range(len(pcs[0])): #plot each point + it's index as text above
-        #     ax.text(pcs[0,i],pcs[1,i],pcs[2,i], all_labels[i], size=15, zorder=1, color=colors[i], alpha=0.5) 
-            
-        # # make gif of 3d plot
-        # def rotate(angle):
-        #     ax.view_init(azim=angle)
-        # rot_animation = animation.FuncAnimation(fig, rotate, frames=np.arange(0, 362, 2), interval=120)
-        # rot_animation.save(f'{figures_outpath}/cate_pcs/{sub}_{mask_name}_{n_sessions}_category_pcs_rotation.gif', 
-        #                 dpi=100, writer='imagemagick')
-        # plt.close('all')
-        # print("saved 3D category PC plot!")
+            for i in range(len(pcs[0])): #plot each point + it's index as text above
+                ax.text(pcs[0,i],pcs[1,i],pcs[2,i], all_labels[i], size=15, zorder=1, color=colors[i], alpha=0.5) 
+                
+            # make gif of 3d plot
+            def rotate(angle):
+                ax.view_init(azim=angle)
+            rot_animation = animation.FuncAnimation(fig, rotate, frames=np.arange(0, 362, 2), interval=120)
+            rot_animation.save(f'{figures_outpath}/cate_pcs/{sub}_{mask_name}_{n_sessions}_category_pcs_rotation.gif', 
+                            dpi=100, writer='imagemagick')
+            plt.close('all')
+            print("saved 3D category PC plot!")
 
 
 if __name__ == "__main__":
@@ -189,30 +193,18 @@ if __name__ == "__main__":
     ROI_dicts = {
         "pathway": ["dorsal"],
         # "pathway": ["ventral"],
-        # "region": ["aVTC", "pVTC", "v1", "v2", "v3"],
-        # "region": ["SPL", "IPL", "PCC"],
     }
-    # plot_tsne_with_figures = {
-    #     "pathway": [True],
-    #     "region": [True, True, True],
-    # }
-    # plot_minors = {
-    # }
-    # TODO: subj01 ventral
-    #        3D: [subj05 ventral:]
-    #       [subj05:] 
+
     for sub in subs:  
         print(f"\n***** Plotting tSNE for {sub}... *****")
         for group_level, ROIS in ROI_dicts.items():
             print(f"*** running {group_level} with {ROIS} ***")
 
             category_grouping(sub=sub,
-                        n_sessions=n_sessions,
-                        # n_jobs=n_jobs,
+                        n_sessions=n_sessions,  #from config
+                        n_jobs=n_jobs,          #from config
                         group_level=group_level,
                         ROIS=ROIS,
-                        # color=color,
-                        # plot_minor=plot_minor,
-                        # plot_tsne_with_figure=plot_tsne_with_figure
+                        plot_3D=plot_3D,        #from config
                         )
 
